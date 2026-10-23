@@ -1,4 +1,4 @@
-# ARIA in CSS
+# Accessible CSS Widgets
 
 <!-- [css-ui] Proposal: `aria-*` and `role` properties, with tree-scoped element references -->
 
