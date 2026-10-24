@@ -150,6 +150,30 @@ dialog > h2 {
 }
 ```
 
+### [Carousel slides](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/carousel/guides/ui-components/carousel/guide.md) (`aria-label` from position)
+
+**Current:** Authors are instructed to give each slide `role="group"`, `aria-roledescription="slide"`, and "an `aria-label` that includes its position", typed out per slide, then announce "Slide N of M" from a status region after scrolling settles:
+
+```html
+<div class="carousel-slide" role="group" aria-roledescription="slide" aria-label="1 of 3">…</div>
+<div class="carousel-slide" role="group" aria-roledescription="slide" aria-label="2 of 3">…</div>
+<div class="carousel-slide" role="group" aria-roledescription="slide" aria-label="3 of 3">…</div>
+```
+
+Position and count are structural facts, and the labels go stale the moment a slide is added or removed.
+With ARIA in CSS and the tree-counting functions, it is one rule that stays correct through any mutation:
+
+```css
+.carousel-slide {
+	role: group;
+	aria-roledescription: "slide";
+	aria-label: sibling-index() " of " sibling-count();
+}
+```
+
+The same shape covers every number ARIA derives from structure: `aria-posinset` and `aria-setsize` on list items, `aria-level` from nesting depth in a tree view built from nested `<details>`.
+JS has to recompute all of them on every mutation; CSS never does.
+
 ## JS to sync ARIA state
 
 Use cases where JS exists solely to sync ARIA attributes with CSS state.
@@ -482,7 +506,81 @@ The `<details>` variant is the same three rules, with the open state coming from
 
 Neither `tab` on a radio input nor `tab` on a `summary` is currently a permitted role.
 Both rely on the companion ARIA in HTML change the proposal asks for, the same loosening checkbox inputs received for `button` and `switch`.
+Chrome already honors both overrides, but exposes neither a checked radio nor an open `details` as `aria-selected`, which is precisely the rule above.
 The tab-to-panel relationship is per pair, which tree-scoped references do not express, so `aria-controls` stays an IDREF.
+
+### Select listboxes as other widgets (`role`, `aria-checked`)
+
+A checkbox group, a rating, a cycle toggle and a tree view can all be implemented over a styled `<select>` listbox.
+The appeal is the markup.
+This is a checkbox group today:
+
+```html
+<fieldset>
+	<legend>Toppings</legend>
+	<label><input type="checkbox" name="toppings" value="Cheese"> Cheese</label>
+	<label><input type="checkbox" name="toppings" value="Mushrooms"> Mushrooms</label>
+	<label><input type="checkbox" name="toppings" value="Olives"> Olives</label>
+</fieldset>
+```
+
+and this is the same control as a listbox:
+
+```html
+<select multiple name="toppings" class="checkboxes">
+	<option>Cheese</option>
+	<option>Mushrooms</option>
+	<option>Olives</option>
+</select>
+```
+
+`<select>` could be the **canonical multiple-choice widget on the web**.
+Much higher signal-to-noise, much lower potential of error.
+The former must be wrapped in a component to be made palatable, the latter can be used as-is.
+
+
+What stands in the way is accessibility.
+The keyboard side is already close: the customizable listbox moves focus with arrow keys and toggles with Space, which is the checkbox-group model, and the [older listbox model](https://github.com/openui/open-ui/issues/1484) is the radio-group one.
+The semantics are not: whatever it looks like, AT hears a listbox of options with `aria-selected`, never a group of checkboxes with `aria-checked`.
+ARIA in HTML permits no roles at all on `select[multiple]`, `select[size]` or `option`.
+All three engines honor the overrides anyway on a customizable `<select>`, on the element and on its options.
+(Safari keeps exposing the options of a *native* listbox as `option`, but a restyled widget opts into customizable select regardless, so that path is the one that matters.)
+What no engine does is carry an option's selectedness over to the new role: `<option role="checkbox" selected>` is exposed as an unchecked checkbox.
+So even the non-conforming route needs JS to copy selection into `aria-checked` on every change, the same sync tax as every entry in this section.
+
+With ARIA in CSS, the relabel is a rule on the stylesheet that already does the restyling:
+
+```css
+select.checkboxes {
+	role: group;
+
+	> option {
+		role: checkbox;
+		aria-checked: false;
+
+		&:checked {
+			aria-checked: true;
+		}
+	}
+}
+
+select.segmented,
+select.stars {
+	role: radiogroup;
+
+	> option {
+		role: radio;
+		aria-checked: false;
+
+		&:checked {
+			aria-checked: true;
+		}
+	}
+}
+```
+
+Conformance-wise this relies on the companion ARIA in HTML loosening the proposal asks for, like tabs.
+Implementation-wise the role half already works; the state half is exactly what these properties add.
 
 ### [Slider](https://github.com/GoogleChrome/guidance/blob/main/guides/forms/slider/guide.md) (`aria-valuetext`)
 
