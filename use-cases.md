@@ -34,6 +34,8 @@ Each entry shows what authors are instructed to do today to make a common UI pat
 	- [Customizable select with grid picker](#customizable-select-with-grid-picker)
 	- [Accordion panels (`::details-content`)](#accordion-panels-details-content)
 	- [Native tooltips (`::tooltip`)](#native-tooltips-tooltip)
+	- [Slotted children (`::slotted()`)](#slotted-children-slotted)
+	- [Repairing a component from outside (`::part()`)](#repairing-a-component-from-outside-part)
 - [Markup you cannot edit](#markup-you-cannot-edit)
 - [Built-in browser magic, made visible](#built-in-browser-magic-made-visible)
 
@@ -901,9 +903,10 @@ Custom attributes, custom states, and consumer overrides all go through the same
 
 ## Pseudo-elements
 
-Pseudo-elements have no markup, so there is no attribute to set and no JS bridge to write.
+Most pseudo-elements have no markup, so there is no attribute to set and no JS bridge to write.
 Generated content can at least be named or hidden through `content: … / "alt"`; nothing equivalent exists for roles, states or relationships, on any pseudo-element.
 Today these are simply blocked.
+`::slotted()` and `::part()` are the other kind: they select real elements, but on the far side of a shadow boundary, where the stylesheet's author cannot set attributes either.
 
 ### [Customizable select with grid picker](https://github.com/GoogleChrome/guidance/blob/main/guides/forms/custom-select-picker-layouts/guide.md)
 
@@ -977,6 +980,70 @@ With ARIA properties, the UA stylesheet can declare it, the same way it declares
 
 That rule is one instance of a [larger pattern](#built-in-browser-magic-made-visible): UA-assigned semantics expressed as rules authors can read and override.
 
+### Slotted children (`::slotted()`)
+
+**Current:** A component can give *itself* a role and state through `ElementInternals` ([above](#custom-element-semantics-elementinternals)), and nothing else.
+The children a consumer slots in are the consumer's markup, so a `<tab-group>` that wants each child exposed as a `tab` has two options, both bad.
+It can write attributes into markup it does not own, from a `slotchange` handler, and keep them in sync forever.
+Or it can require every child to be a component too, whose only job is to carry the role: Shoelace's `<sl-tab>` does exactly this, with `this.setAttribute('role', 'tab')` in `connectedCallback` and `this.setAttribute('aria-selected', …)` whenever `active` changes, on an element whose entire visible content is a `<slot>`.
+
+```js
+// sl-tab: a custom element whose job is to hold three attributes
+connectedCallback() {
+	super.connectedCallback();
+	this.setAttribute('role', 'tab');
+}
+handleActiveChange() {
+	this.setAttribute('aria-selected', this.active ? 'true' : 'false');
+}
+handleDisabledChange() {
+	this.setAttribute('aria-disabled', this.disabled ? 'true' : 'false');
+}
+```
+
+With ARIA in CSS, the component's stylesheet already reaches slotted children to lay them out, so it can describe them in the same place.
+The children can be plain `<button slot="tab">`s, and in the flat tree they sit directly under the host, so `tablist` → `tab` holds:
+
+```css
+:host {
+	role: tablist;
+}
+
+::slotted([slot="tab"]) {
+	role: tab;
+	aria-selected: false;
+}
+
+::slotted([slot="tab"][selected]) {
+	aria-selected: true;
+}
+```
+
+Nothing is written into the consumer's DOM, and a child component exists only when it has behavior of its own.
+
+### Repairing a component from outside (`::part()`)
+
+**Current:** ARIA relationships are IDREFs, and IDREFs do not cross shadow boundaries, so a `<label>` wrapping a custom input does not label the `<input>` inside it.
+Every fix requires the component's cooperation: making the element form-associated so the host itself is labelable, forwarding the name through element reflection, or adopting [Reference Target](https://github.com/WICG/webcomponents/blob/gh-pages/proposals/reference-target-explainer.md).
+Where the component has done none of these, the consumer's options are what [Nolan Lawson catalogued](https://nolanlawson.com/2022/11/28/shadow-dom-and-accessibility-the-trouble-with-aria/): copy the label's text into an `aria-label` the component hopefully forwards, "set up a `MutationObserver` or similar technique to observe whenever the `<label>` changes", or stop using the component.
+None of them work for `aria-describedby`, `aria-controls` or any relationship that is not a name.
+
+With `::part()` and tree-scoped references, a selector reaches both ends of the relation, so the consumer repairs it from their own stylesheet:
+
+```css
+label:has(> fancy-input) {
+	ref-name: --label;
+	ref-scope: --label;
+}
+
+label > fancy-input::part(input) {
+	aria-labelledby: --label;
+}
+```
+
+The same path fixes a vendor component's internals when its exposed parts carry the wrong semantics (`fancy-nav::part(items) { role: list }`), which is [Markup you cannot edit](#markup-you-cannot-edit) across a shadow boundary.
+It only reaches what the component exposes as a part, which is the right limit: parts are the component's declared styling surface, and this makes them its declared semantic surface too.
+
 ## Markup you cannot edit
 
 CSS is often the only injection point into markup an author does not control: Markdown output, CMS templates, third-party embeds, components.
@@ -985,9 +1052,6 @@ Adding them means breaking out of Markdown or threading conditionals through eve
 `lang` and `dir` are outside this proposal, but the same shape recurs with ARIA, and there CSS can also *repair* semantics.
 A third-party navigation widget marks a plain list of links up as `role="menu"`/`role="menuitem"`, a misuse the [dropdown instructions](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-atoms/viewport-aware-dropdowns/guide.md) warn against because it promises a keyboard model the widget does not implement.
 The embedding page cannot touch the markup, but it can restyle it.
-The same applies across a shadow boundary.
-A component author can make a wrapping `<label>` reach the inner control, by making the element form-associated and forwarding the name through element reflection, or by adopting Reference Target.
-When they have not, the consumer has no recourse today; with `::part()` the relationship can be repaired from the outside.
 
 ```css
 .vendor-nav [role="menu"] {
@@ -998,6 +1062,8 @@ When they have not, the consumer has no recourse today; with `::part()` the rela
 	role: listitem;
 }
 ```
+
+Across a shadow boundary, the same repair goes through [`::part()`](#repairing-a-component-from-outside-part).
 
 ## Built-in browser magic, made visible
 
