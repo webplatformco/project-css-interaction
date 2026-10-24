@@ -441,6 +441,11 @@ document.addEventListener('command', e => {
 The CSS-only version of the widget is a group of radio inputs: `:checked` is the selected tab, arrow keys move between tabs natively, and only the checked one sits in the tab order.
 What AT hears is a radio group.
 
+The newer variant is a group of `<details name="…">` elements laid out as tabs, with `::details-content` as the panel.
+Authors keep trying it and keep getting the same verdict:
+- [Pure CSS tabs with details, grid and subgrid](https://css-tricks.com/pure-css-tabs-with-details-grid-and-subgrid/) (CSS-Tricks, 2025) drew the review that the result has no `tablist`/`tab` roles, no arrow-key or Home/End navigation, and announces no tab count or position: "a 'CSS-only' or 'pure CSS' widget won't have the same accessibility features as a built-for-purpose pattern."
+- The Cirth CSS framework evaluated `<details>`, radio inputs and `:target`, then [deferred tabs indefinitely](https://github.com/cirthcss/cirth/issues/61) (2026): "CSS can select and present a state, but it cannot manage focus or update the corresponding ARIA attributes. Therefore, correct ARIA tabs currently require script."
+
 With ARIA in CSS, and `focusgroup` and `interactivity` alongside it:
 
 ```css
@@ -458,8 +463,25 @@ With ARIA in CSS, and `focusgroup` and `interactivity` alongside it:
 }
 ```
 
-`tab` is not currently a permitted role on radio inputs.
-This relies on the companion ARIA in HTML change the proposal asks for, the same loosening checkbox inputs received for `button` and `switch`.
+The `<details>` variant is the same three rules, with the open state coming from `[open]` and the panel being a pseudo-element:
+
+```css
+.tabs {
+	focusgroup: tablist;
+}
+
+.tabs > details[open] > summary {
+	aria-selected: true;
+}
+
+.tabs > details::details-content {
+	role: tabpanel;
+	interactivity: focusable;
+}
+```
+
+Neither `tab` on a radio input nor `tab` on a `summary` is currently a permitted role.
+Both rely on the companion ARIA in HTML change the proposal asks for, the same loosening checkbox inputs received for `button` and `switch`.
 The tab-to-panel relationship is per pair, which tree-scoped references do not express, so `aria-controls` stays an IDREF.
 
 ### [Slider](https://github.com/GoogleChrome/guidance/blob/main/guides/forms/slider/guide.md) (`aria-valuetext`)

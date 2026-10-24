@@ -11,10 +11,14 @@ Additionally, for CSS pseudo-elements such as `::picker()` or `::details-content
 As a result, accessibility is often skipped, buggy, pushed to "later", or deemed out of scope altogether.
 
 Authors are often discouraged from simpler, faster to load CSS patterns on the basis of accessibility concerns, and steered into heavy markup and JS solutions as the solution.
-But what if we could pave the cowpaths, and _make_ the CSS patterns accessible by design?
+A CSS framework that [shelved its tabs component](https://github.com/cirthcss/cirth/issues/61) for exactly this reason put it plainly:
+
+> CSS can select and present a state, but it cannot manage focus or update the corresponding ARIA attributes. Therefore, correct ARIA tabs currently require script.
+
+But what if instead of discouraging authors from doing what feels natural (an uphill battle), we could pave the cowpaths, and _make_ the CSS patterns accessible by design?
 
 The benefits are quite significant, for both developers and end-users:
-- Lower friction to make experiences accessible directly translates to more accessible experiences.
+- Lower friction to make experiences accessible directly translates to **more accessible experiences**.
 - **Co-location resists drift.** The dominant scripted-ARIA failure is state desync; deriving semantics from the same selector that drives presentation makes them a single expression.
 - The resulting decrease in complexity has the potential to **improve speed of Web UI as a whole**. Besides Built-in elements are often wrapped in components _precisely_ to encapsulate accessibility logic (which requires JS).
 The ability to handle accessibility semantics in CSS allows many of these wrappers to become a simple CSS class on a built-in element, with the downstream effects compounding.
