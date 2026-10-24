@@ -112,6 +112,44 @@ This also means that for cases where orientation varies e.g. by available space,
 
 
 
+### [Breadcrumbs](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/breadcrumbs/guides/ui-components/breadcrumbs/guide.md) (`aria-current`)
+
+**Current:** Authors are instructed to mark "the current page, the last item" with `aria-current="page"`,
+although it's always the last item.
+
+With ARIA in CSS:
+
+```css
+.breadcrumbs li:last-child > a {
+	aria-current: page;
+}
+```
+
+### Dialog labels (`aria-labelledby`)
+
+**Current:** Every dialog must be named by its heading: [modal and non-modal dialogs](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/dialog/guides/ui-components/dialog/guide.md), [light-dismiss dialogs](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-behaviors/light-dismiss-a-dialog/guide.md), and [app tour steps](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-components/persistent-app-tours/guide.md) (`role="dialog"` plus `aria-labelledby`).
+That means a unique id on each heading and a matching reference on each container, by hand, per instance:
+
+```html
+<dialog id="confirm" aria-labelledby="confirm-title">
+	<h2 id="confirm-title">Delete this item?</h2>
+	…
+</dialog>
+```
+
+With tree-scoped references, the rule is written once and every dialog labels itself by its own heading, no ids involved:
+
+```css
+dialog {
+	ref-scope: --title;
+	aria-labelledby: --title;
+}
+
+dialog > h2 {
+	ref-name: --title;
+}
+```
+
 ## JS to sync ARIA state
 
 Use cases where JS exists solely to sync ARIA attributes with CSS state.
@@ -451,6 +489,47 @@ With ARIA in CSS:
 	aria-hidden: true;
 }
 ```
+
+### Custom element semantics (`ElementInternals`)
+
+**Current:** Component authors are instructed to set role and ARIA state through [`ElementInternals`](https://github.com/GoogleChrome/guidance/blob/main/guides/html/accessible-web-components/guide.md), so the semantics are defaults the component owns rather than attributes a consumer can clobber:
+
+```js
+class ToggleSwitch extends HTMLElement {
+	#internals;
+	constructor() {
+		super();
+		this.#internals = this.attachInternals();
+		this.#internals.role = 'switch';
+		this.#internals.ariaChecked = 'false';
+		this.addEventListener('click', () => this.toggle());
+	}
+	toggle() {
+		const on = this.#internals.ariaChecked !== 'true';
+		this.#internals.ariaChecked = String(on);
+	}
+}
+```
+
+Here ARIA *is* the state: the component has no other record of being on.
+The moment it does, a `checked` attribute so consumers can set it, or a custom state so CSS can style it, the mixin becomes one more copy to update imperatively in every code path that changes the state.
+
+With ARIA in CSS, the component's own stylesheet declares the semantics once, from whichever source of truth it already exposes:
+
+```css
+:host {
+	role: switch;
+	aria-checked: false;
+}
+
+:host([checked]),
+:host(:state(checked)) {
+	aria-checked: true;
+}
+```
+
+This is also more composable than the mixin.
+Custom attributes, custom states, and consumer overrides all go through the same cascade, and a consumer can extend the semantics (`toggle-switch[readonly] { aria-readonly: true }`) without the component having anticipated it.
 
 ## Inability to apply ARIA to pseudo-elements
 
