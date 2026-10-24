@@ -159,6 +159,66 @@ dialog > h2 {
 }
 ```
 
+### Relationships that force templating (`aria-describedby`, `aria-errormessage`)
+
+**Current:** Every relationship attribute takes an id, and ids must be unique on the page, so any repeated pattern with a relationship in it cannot be static markup.
+A form field with a hint and an error message cannot be copy-pasted; it has to be generated, with the ids threaded through.
+The pain is [acknowledged at the HTML level](https://github.com/whatwg/html/issues/10143), where the right fix for the attributes themselves remains an open question.
+Meanwhile, frameworks ship a hook for exactly this.
+React: "[`useId`](https://react.dev/reference/react/useId) is a React Hook for generating unique IDs that can be passed to accessibility attributes", because "a component may be rendered more than once on the page, but IDs have to be unique!"
+Vue has the same [`useId()`](https://vuejs.org/api/composition-api-helpers.html#useid), "for accessibility attributes or form elements".
+The [error announcement](https://github.com/GoogleChrome/guidance/blob/main/guides/accessibility/accessible-error-announcement/guide.md) instructions show the hand-written version, one id per field and one per message:
+
+```jsx
+function Field({ label, hint, error, ...props }) {
+	const id = useId();
+	return (
+		<div className="field">
+			<label htmlFor={id}>{label}</label>
+			<input id={id} aria-describedby={`${id}-hint`} aria-errormessage={`${id}-error`} {...props} />
+			<p id={`${id}-hint`} className="hint">{hint}</p>
+			<p id={`${id}-error`} className="error">{error}</p>
+		</div>
+	);
+}
+```
+
+With tree-scoped references, the field is plain HTML again, with nothing unique in it:
+
+```html
+<div class="field">
+	<label>Email <input type="email" required></label>
+	<p class="hint">We never share it.</p>
+	<p class="error">Please enter a valid email address.</p>
+</div>
+```
+
+```css
+.field {
+	ref-scope: --hint, --error;
+
+	> .hint {
+		ref-name: --hint;
+	}
+
+	> .error {
+		ref-name: --error;
+	}
+
+	input {
+		aria-describedby: --hint;
+		aria-errormessage: --error;
+	}
+
+	input:user-invalid {
+		aria-invalid: true;
+	}
+}
+```
+
+The markup can be static, copy-pasted, hand-written or CMS-emitted, and the relationship holds for every field on the page and every one added later.
+The same applies wherever this document uses a reference: a dialog and its heading, an accordion panel and its summary, a combobox and its active option.
+
 ### [Carousel slides](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/carousel/guides/ui-components/carousel/guide.md) (`aria-label` from position)
 
 **Current:** Authors are instructed to give each slide `role="group"`, `aria-roledescription="slide"`, and "an `aria-label` that includes its position", typed out per slide, then announce "Slide N of M" from a status region after scrolling settles:
