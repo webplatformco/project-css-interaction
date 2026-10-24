@@ -3,6 +3,7 @@
 <!-- [css-ui] Proposal: `aria-*` and `role` properties, with tree-scoped element references -->
 
 - [Problem statement \& user needs](#problem-statement--user-needs)
+	- [Use cases](#use-cases)
 	- [Why CSS?](#why-css)
 	- [Cross-root ARIA](#cross-root-aria)
 - [What about CAS (Cascading Attribute Sheets)?](#what-about-cas-cascading-attribute-sheets)
@@ -17,6 +18,7 @@
 - [Guardrails](#guardrails)
 - [Prior art](#prior-art)
 	- [Attributes from CSS](#attributes-from-css)
+	- [ARIA via CSS](#aria-via-css)
 	- [CSS and the a11y tree](#css-and-the-a11y-tree)
 - [Anticipated objections](#anticipated-objections)
 	- [Layer and venue](#layer-and-venue)
@@ -31,7 +33,7 @@ An increasing number of common interaction patterns can be implemented via HTML 
 
 Additionally, for **CSS pseudo-elements** such as `::picker()`, `::details-content`, `::part()`, `::slotted()` etc there is _no_ way to convey their accessibility semantics to the accessibility tree.
 
-As a result, accessibility is often skipped, buggy, pushed to "later", or deemed out of scope altogether.
+As a result, accessibility is often skipped, buggy, pushed to "later", or deemed out of scope altogether ([use cases](./use-cases.md)).
 
 Authors are often discouraged from simpler, faster to load CSS patterns on the basis of accessibility concerns, and steered into heavy markup and JS solutions as the solution.
 A CSS framework that [shelved its tabs component](https://github.com/cirthcss/cirth/issues/61) for exactly this reason put it plainly:
@@ -46,6 +48,15 @@ The benefits are quite significant, for both developers and end-users:
 - **Fault tolerance.** Scripted ARIA fails whole: a script that does not load, an exception anywhere in the bundle, or an error in an unrelated handler earlier in the same file, and every `setAttribute` after it never runs, silently. CSS is designed to fail partially: an invalid declaration is dropped and the rest of the sheet still applies, and if the sheet never arrives, `auto` leaves the markup semantics exactly as they were.
 - The resulting decrease in complexity has the potential to **improve speed of Web UI as a whole**. Besides Built-in elements are often wrapped in components _precisely_ to encapsulate accessibility logic (which requires JS).
 The ability to handle accessibility semantics in CSS allows many of these wrappers to become a simple CSS class on a built-in element, with the downstream effects compounding.
+
+### Use cases
+
+The [full list](./use-cases.md) is drawn from current implementation guidance and falls into four buckets:
+
+- **[Manual ARIA boilerplate](./use-cases.md#manual-aria-boilerplate)**: facts CSS already knows, added by hand on every instance: `role="list"` after `list-style: none`, `aria-label="2 of 5"` on every carousel slide, a unique id on every dialog heading so `aria-labelledby` can point at it, etc.
+- **[JS that exists only to sync CSS state into ARIA](./use-cases.md#js-to-sync-aria-state)**: `aria-invalid` from `:user-invalid`, `aria-current` from `:target-current`, `aria-pressed` or `aria-selected` from `:checked` (toggle buttons, tabs, `<select>` listboxes restyled as checkbox groups), etc.
+- **[Pseudo-elements that cannot carry ARIA at all](./use-cases.md#inability-to-apply-aria-to-pseudo-elements)**: `::picker()` laid out as a grid, `::details-content` as a labelled region, `::tooltip`, etc.
+- **[Markup the author cannot edit](./use-cases.md#markup-you-cannot-edit)**: Markdown output, third-party widgets, components that did not forward labels, etc.
 
 ### Why CSS?
 
