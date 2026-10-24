@@ -18,10 +18,11 @@
 - [Prior art](#prior-art)
 	- [Attributes from CSS](#attributes-from-css)
 	- [CSS and the a11y tree](#css-and-the-a11y-tree)
-- [Objections raised against `interactivity`](#objections-raised-against-interactivity)
-	- [Against `interactivity: inert` (#10711)](#against-interactivity-inert-10711)
-	- [Against `interactivity: focusable` (#13040, #3379)](#against-interactivity-focusable-13040-3379)
 - [Anticipated objections](#anticipated-objections)
+	- [Layer and venue](#layer-and-venue)
+	- [Misuse](#misuse)
+	- [Focus and behavior](#focus-and-behavior)
+	- [Semantics](#semantics)
 
 
 ## Problem statement & user needs
@@ -42,6 +43,7 @@ But what if instead of discouraging authors from doing what feels natural (an up
 The benefits are quite significant, for both developers and end-users:
 - Lower friction to make experiences accessible directly translates to **more accessible experiences**.
 - **Co-location resists drift.** The dominant scripted-ARIA failure is state desync; deriving semantics from the same selector that drives presentation makes them a single expression.
+- **Fault tolerance.** Scripted ARIA fails whole: a script that does not load, an exception anywhere in the bundle, or an error in an unrelated handler earlier in the same file, and every `setAttribute` after it never runs, silently. CSS is designed to fail partially: an invalid declaration is dropped and the rest of the sheet still applies, and if the sheet never arrives, `auto` leaves the markup semantics exactly as they were.
 - The resulting decrease in complexity has the potential to **improve speed of Web UI as a whole**. Besides Built-in elements are often wrapped in components _precisely_ to encapsulate accessibility logic (which requires JS).
 The ability to handle accessibility semantics in CSS allows many of these wrappers to become a simple CSS class on a built-in element, with the downstream effects compounding.
 
@@ -117,6 +119,9 @@ Instead, piggybacking on CSS may be [theoretically impure](https://www.w3.org/TR
 - CSS properties mirroring ARIA attributes that feed **only the accessibility tree computation** — never reflected to the DOM.
 - Properties named after the attribute (`role`, not `aria-role`), but value space designed to fit CSS syntax and semantics.
 - Relationship properties take both ids (for compatibility) but also take tree-scoped `<dashed-ident>` references (the `anchor-name` model), also mitigating the [IDREF DX problem](https://github.com/whatwg/html/issues/10143) without attempting to solve it completely.
+
+This is the general form of the [pseudo-element-only `aria-*` properties](https://github.com/w3c/csswg-drafts/issues/14534) proposed in CSSWG in September 2026, which it contains as a subset.
+The [use cases](./use-cases.md) are why the element half is the bigger half.
 
 Later:
 - CQ/`if()` condition to match on computed `role` (since `:role()` cannot match these)
@@ -211,6 +216,13 @@ Platform precedent for CSS properties mirroring markup attributes:
 - HTML presentational attributes (now largely defined in terms of CSS)
 - CSS `direction` vs HTML `dir`
 
+### ARIA via CSS
+
+- [`aria-*` properties for pseudo-elements only](https://github.com/w3c/csswg-drafts/issues/14534) (Tab Atkins, September 2026): properties matching every `aria-*` attribute's name and value space, restricted to pseudo-elements. Notes that the general version has been "discussed a few times" and rejected over layering and AT interaction, and argues those objections do not apply to pseudo-elements. Brought to the ARIA WG as [aria#2921](https://github.com/w3c/aria/issues/2921) for TPAC 2026.
+- [`:target-current` implies `aria-current`](https://github.com/w3c/csswg-drafts/issues/12659): the ARIA WG [resolved](https://github.com/w3c/aria/issues/2710#issuecomment-3819696897) in January 2026 that the active scroll marker maps to `aria-current="true"` in the platform tree, with no attribute injection, and an author-set `aria-current` winning. A per-feature instance of this proposal's processing model: computed semantics, no DOM reflection, markup wins.
+- [CSS-AAM](https://github.com/w3c/css-aam), newly created, is the home for "this CSS state maps to this platform semantics"; `:target-current` is its first entry, and the resolutions this proposal needs would live there.
+- `aria-busy` by default during view transitions ([#8447](https://github.com/w3c/csswg-drafts/issues/8447), closed) and a pseudo-class for a range input's current value ([#6354](https://github.com/w3c/csswg-drafts/issues/6354)): smaller requests for the a11y tree to follow CSS state.
+
 ### CSS and the a11y tree
 
 CSS already affects the a11y tree, often destructively and by accident:
@@ -235,42 +247,53 @@ Where deliberate:
 - `::scroll-marker`/`::scroll-button()` and the `image-animation: controlled` control: CSS-generated interactive UI with UA-assigned semantics,
 - `interactivity` (shipped, though over sustained a11y objections in [#10711](https://github.com/w3c/csswg-drafts/issues/10711) — cited as fact, not endorsement), and `interactivity: focusable` ([#13040](https://github.com/w3c/csswg-drafts/issues/13040)). That proposal already anticipated this one: making generated content focusable "would obliterate a lot of specialized pseudo-elements being proposed (especially if down the line we can control ARIA roles too)", and it named the false-sense-of-security risk of focusability without semantics, concluding that "the way to solve this is to provide control over those as well, not to make it harder to make a UI keyboard accessible." It also floated expressing a UA default as a UA stylesheet rule (`[tabindex=0] { interactivity: focusable !important }`), the same move this proposal makes for `::tooltip { role: tooltip }`. The objection on [#13040](https://github.com/w3c/csswg-drafts/issues/13040) — that focusability alone amplifies the "focusable = accessible" author mistake — is an argument for completing the contract; this proposal is that completion, and the two should be evaluated as one program.
 
-## Objections raised against `interactivity`
-
-Collected from [#10711](https://github.com/w3c/csswg-drafts/issues/10711) (`interactivity: inert`, shipped in Chrome 135), [#13040](https://github.com/w3c/csswg-drafts/issues/13040) (`interactivity: focusable`), its 2018 precursor [#3379](https://github.com/w3c/csswg-drafts/issues/3379), the [APA WG review](https://github.com/w3ctag/design-reviews/issues/1055#issuecomment-2725956455), and Alice Boxhall's [threat model post](https://alice.boxhall.au/articles/a-threat-model-for-accessibility-on-the-web/#css-carousels-and-interactivity). Expect every one of these to be raised against this proposal.
-
-### Against `interactivity: inert` ([#10711](https://github.com/w3c/csswg-drafts/issues/10711))
-
-- **No visual impact, so misuse is invisible** (Boxhall, O'Hara, Suzanne, APA). Authors assume content stays as perceivable to everyone as it is to them; rules setting the property drift out of sync with the rules that change appearance; copy-pasted CSS leaves subtrees inert unnoticed. `user-select: none` / `pointer-events: none` show how such properties get abused. Non-interactive ≠ non-critical: static content made inert vanishes for AT users only, with no recourse.
-- **"The `aria-hidden` of CSS"** (O'Hara). Browsers had to whittle `aria-hidden` down (ignored on `html`/`body`, undone when focus enters) because of pervasive misuse. No mitigation for author error was designed here, and once shipped it cannot be scoped down without "breaking the web".
-- **Wrong layer** (Tim Nguyen, Teh, Boxhall). Inertness is content/semantics, not presentation, and CSS's association with presentation makes semantics-blind use *more* likely. Boxhall explicitly rejects the "CSS already affects the a11y tree" argument: `display: none` affects it *because* it changes presentation; the a11y tree is meant to mirror the visible experience. A property that changes semantics without changing visuals is a different category.
-- **No guardrails** (Teh, Boxhall). HTML `inert` got normative guidance on inappropriate use after the same concerns; a note in a CSS spec (or any article) will be ignored. Authors learn by trial and error, and their trials don't include AT or keyboard testing. Consider careless authors and AI-generated code, not just well-intentioned ones.
-- **Scope untethered from the motivating case** (Suzanne, O'Hara, Boxhall, APA). Titled "offscreen content" but applies anywhere; explained only as part of carousels with no standalone explainer; authors already read it as "remove any element from the tab order", where `tabindex=-1` or `disabled` is the right tool. Tailored solutions beat a one-size-fits-all primitive. APA: which use cases need CSS inert over the attribute at all?
-- **Un-inerting** (Boxhall, APA). Escaping inertness in CSS invites specificity battles, is inconsistent with HTML `inert`, and is invisible to whoever inerted the subtree. The only real use case is modal UI, which is a top-layer question. Resolved May 2025: not inherited, cannot undo inertness.
-- **Steers authors away from `<dialog>` and popover**, which were designed carefully (Boxhall). A low-level invisible primitive puts responsibility *back* on authors while making the wrong thing easier than the right one (Suzanne).
-- **Process** (Boxhall, Lauke, Kardell, Mayank, Suzanne). Shipped in time for Google I/O with TAG/APA review pending; pushback treated as a debate to be rebutted rather than feedback; "developers want this" / "there are use cases" offered as sufficient justification. Boxhall: "exhausting and demoralising", and she regrets `inert` itself.
-- **Smaller points.** Does set size / position report correctly when some items are inert (Grenier)? Every option risks content reachable only by scrolling (Kizu). Firefox's tab bar wants hidden-but-in-tree, so inertness is the wrong tool (Emilio). Any `opacity`-based heuristic would break visually-hidden-but-AT-visible content (O'Hara).
-
-### Against `interactivity: focusable` ([#13040](https://github.com/w3c/csswg-drafts/issues/13040), [#3379](https://github.com/w3c/csswg-drafts/issues/3379))
-
-- **Focusable ≠ accessible** (Higley). The dominant mistake of developers without a11y understanding is toggling focusability and thinking they are done; it degrades screen reader and voice control users. "An alarmingly large foot-gun that would increase the frequency of this mistake." New problems felt by users, in service of pain felt by developers.
-- **Focusability couples to semantics and behavior, not presentation** (Rivoal 2018, Higley, Yasskin). Focus alone is rarely useful; the handler that reacts to it is JS, so the switch belongs in JS to avoid desync. Rivoal: *removing* focusability from CSS is fine; *adding* it is the suspect direction, acceptable only if there are real cases with no attached behavior. Higley: CSS may be easier at authoring time but is more fragile, harder to debug and maintain.
-- **Wrong venue** (Higley, Atkins). Focus DX is not CSS-specific; CSSWG has fewer a11y participants than Open UI or HTML; `focusgroup` / `focusNext` were designed better *because* a11y folks were involved early. APA: "doesn't seem like the right layer", concerned about easy footguns.
-- **`inert` is not precedent** (Kardell, Stearns). The opposition to `interactivity` was never resolved; don't hold it up as done or dig the hole deeper.
-- **CSS can't know the condition** (Chan). E.g. a scroller that is only sometimes scrollable also depends on content amount; the browser should make such things focusable itself (Interop proposal) rather than hand authors another footgun.
-- **Granularity** (Oriol). `tabindex=-1` (click-only) is common; if sequential focusability is exposed, so should order, suggesting `tab-index: none | <integer>` instead. Pseudo-element focus is undefined (`activeElement`).
-- **Focus management is already "wonky and magical"** (Kardell 2018, Boxhall +1). Don't add significant new complexity until the existing mess is dealt with.
-- **Process** (Yasskin, Higley, Stearns). Solution-first issue with no explainer, use cases, or evidence of severity, same pattern as [html#10143](https://github.com/whatwg/html/issues/10143); removed from the CSSWG agenda pending use cases and alternatives (Cascading Attribute Sheets suggested by Warlow).
-
 ## Anticipated objections
 
-- **Conditional semantics.** When the UI is conditional on MQs, semantics that can't follow are wrong, not stable; the failure exists today with reversed polarity. `auto` + markup remain for anything that shouldn't vary.
-- **Non-CSS consumers / failed loads.** `auto` keeps markup semantics as the baseline; consumers that discard CSS already discard `reading-flow` and every layout-dependent aspect of meaning.
-- **Cascade/third-party CSS deciding what things are.** Third-party CSS can already destroy semantics wholesale (`display: none`/`contents`, `interactivity: inert`); it just can't repair anything. Auditing moves to the computed tree — what AT users actually get, and what inspectors and axe-style runners already evaluate.
+Most of these were raised against `interactivity: inert` ([#10711](https://github.com/w3c/csswg-drafts/issues/10711), shipped in Chrome 135) and `interactivity: focusable` ([#13040](https://github.com/w3c/csswg-drafts/issues/13040), its 2018 precursor [#3379](https://github.com/w3c/csswg-drafts/issues/3379), the [APA WG review](https://github.com/w3ctag/design-reviews/issues/1055#issuecomment-2725956455), and Alice Boxhall's [threat model post](https://alice.boxhall.au/articles/a-threat-model-for-accessibility-on-the-web/#css-carousels-and-interactivity)).
+
+Objections specific to inertness (un-inerting, steering away from `<dialog>`, set size with inert items) do not transfer and are omitted.
+
+### Layer and venue
+
+- **Wrong layer: CSS is for styling** (Tim Nguyen, Teh, Boxhall, Rivoal 2018, Higley, Yasskin). Semantics, inertness and focusability are content and behavior, not presentation, and CSS's association with presentation makes semantics-blind use *more* likely. Boxhall rejects the "CSS already affects the a11y tree" argument: `display: none` affects it *because* it changes presentation; the a11y tree mirrors the visible experience, and a property that changes semantics without changing visuals is a different category. Higley: CSS may be easier at authoring time but is more fragile and harder to debug.
+  CSS has not been only about styling for a very long time: SVG geometry properties, aural properties, `user-select`, `touch-action`, `interactivity`, `resize`, `pointer-events`, `scroll-behavior`/`overscroll-behavior`, `content`/`quotes`, `direction`/`unicode-bidi`, `reading-flow`/`reading-order`, Opera's old `nav-*`. That ship has sailed, and `reading-flow` is the direct counterexample to Boxhall's line: it changes exposure order without changing a pixel, and went through ARIA WG review ([aria#2241](https://github.com/w3c/aria/issues/2241)).
+  The actual user need was never "separation of concerns"; it is local (one-off) vs global (rule-based): O(1) author effort, a single source of truth, and no side effects or invalidation to manage. That is exactly why reactive frameworks are popular, and CSS is the platform's only fully reactive language. Theoretical purity sits at the bottom of the priority of constituencies; this has very clear benefits for both end users and developers, who sit at the top.
+- **Wrong venue** (Higley, Atkins, APA). CSSWG has fewer a11y participants than Open UI or HTML; `focusgroup` and `focusNext` came out better *because* a11y people were involved early.
+  The semantics here are not CSS's to design: every property mirrors an ARIA attribute one to one and feeds the existing ARIA/HTML-AAM computation unchanged, so ARIA WG owns the meaning and CSSWG owns only the syntax and the cascade, the same split `reading-flow` used, and CSS-AAM now exists as the joint venue for exactly these mappings. The companion ARIA in HTML change goes through html-aria, not here.
+
+### Misuse
+
+- **No visual impact, so misuse is invisible** (Boxhall, O'Hara, Suzanne, APA). Authors assume content stays as perceivable to everyone as it is to them; rules setting the property drift out of sync with the rules that change appearance; copy-pasted CSS leaves subtrees inert unnoticed. `user-select: none` and `pointer-events: none` show how such properties get abused. Non-interactive ≠ non-critical.
+  `inert` does affect non-AT users, so that objection was overstated even for `interactivity`. More to the point, applying ARIA via HTML or JS has exactly the same property: ARIA attributes have no visual impact either, and that is the baseline being compared against. The "CSS applies it in aggregate" worry does not hold: a JS loop also applies it in aggregate, with less visibility. At least CSS keeps the semantics next to the styling they describe, and the Guardrails ask inspectors to surface rule provenance, which makes a CSS-originated role *more* traceable than a `setAttribute` buried in a handler.
+- **"The `aria-hidden` of CSS"** (O'Hara). Browsers had to whittle `aria-hidden` down (ignored on `html`/`body`, undone when focus enters) because of pervasive misuse. No mitigation for author error was designed here, and once shipped it cannot be scoped down without "breaking the web".
+  These properties are inputs to the same computation, so every mitigation that exists or is later added to the attribute applies to the property unchanged. And the syntax lends itself to a very simple, very visible mitigation in the UA stylesheet:
+  ```css
+  html, body { aria-hidden: false !important }
+  ```
+- **No guardrails; nothing encourages correct use** (Teh, Boxhall; the neglect and threat-model objection). HTML `inert` got normative guidance on inappropriate use after the same concerns; a note in a CSS spec will be ignored. Authors learn by trial and error, and their trials don't include AT or keyboard testing. Consider careless authors and AI-generated code, not just well-intentioned ones.
+  True of ARIA attributes and a11y-touching JS today too. But under neglect, the easiest version is what ships, and today the accessible version of CSS-driven UI costs a JS subsystem while the inaccessible one costs nothing. This feature's purpose is making the accessible version the one-declaration version. The Guardrails section is the correct-use encouragement whose absence was the core complaint about `interactivity`, and unlike a spec note, the operability guardrail is enforced by the UA.
+- **Cascade/third-party CSS deciding what things are.** Third-party CSS can already destroy semantics wholesale (`display: none`/`contents`, `interactivity: inert`); it just can't repair anything. Auditing moves to the computed tree, which is what AT users actually get, and what inspectors and axe-style runners already evaluate.
+
+### Focus and behavior
+
+- **Focusable ≠ accessible** (Higley). The dominant mistake of developers without a11y understanding is toggling focusability and thinking they are done; it degrades screen reader and voice control users. "An alarmingly large foot-gun that would increase the frequency of this mistake."
+  The other attributes address this: that is the whole point of proposing the two as one program. And the operability guardrail enforces the converse, no widget role without focusability, so the half-done state is not expressible.
+- **Focusability couples to behavior, so the switch belongs in JS** (Rivoal 2018, Higley, Yasskin). Focus alone is rarely useful; the handler that reacts to it is JS, so keeping the switch in JS avoids desync. Rivoal: *removing* focusability from CSS is fine; *adding* it is the suspect direction, acceptable only for cases with no attached behavior.
+  See the layer argument above, and the next bullet: for most of the property set there is no behavior to desync from.
 - **Semantics without behavior.** This objection only bites for widget roles; most of the property set is pure state, where no behavioral contract exists to be missing: `aria-current` from `:target`/`scroll-state(snapped)` (scrollspy, active carousel slide — CSS is the only layer that knows), `aria-expanded` mirroring `:popover-open`/`[open]`/`:checked`/`:focus-within`, `aria-orientation` when `flex-direction` flips at a breakpoint (orientation's source of truth *is* the stylesheet), `aria-hidden` on off-canvas or clamped content, `aria-busy` on skeletons. Where roles are involved, the dominant cases relabel fully working native behavior within ARIA in HTML's existing allowances: checkbox-backed toggles already toggle on Space (`role: button; aria-pressed` or `role: switch` from `:checked` — allowed on checkbox inputs since [html-aria#6](https://github.com/w3c/html-aria/issues/6), though Chrome maps native checkedness onto `switch`, whose state is still `aria-checked`, and not onto `button`'s `aria-pressed`, which is precisely the gap these properties fill), popovers already dismiss and manage focus (`role: tooltip`; `aria-haspopup` on the invoker). Radio-hack tabs have arrow-key traversal natively but `tab` is not currently an allowed role on radio inputs — a relabel this proposal makes worth permitting via a companion ARIA-in-HTML change, the same loosening path checkbox→`button`/`switch` took. These widgets work for keyboard users today and misreport to AT users — the interaction contract is complete, the description is wrong. The residue (`role: button` on a dead `div`) is what the operability guardrail refuses, and invoker commands supply declarative behavior to compose with.
-- **Wrong layer: CSS is for styling.** CSS has not been only about styling for a very long time: SVG geometry properties, aural properties, `user-select`, `touch-action`, `interactivity`, `resize`, `pointer-events`, `scroll-behavior`/`overscroll-behavior`, `content`/`quotes`, `direction`/`unicode-bidi`, `reading-flow`/`reading-order`, Opera's old `nav-*`. The actual user need was never "separation of concerns"; it is local (one-off) vs global (rule-based): O(1) author effort, a single source of truth, and no side effects or invalidation to manage. That is exactly why reactive frameworks are popular, and CSS is the platform's only fully reactive language. None of that is about styling; a separate attribute language would be an artificial boundary from the author's point of view.
-- **Many of these attributes only apply to certain elements.** So do the SVG geometry properties, and nothing broke. None of these inherit.
-- **Nothing encourages correct use; misuse is invisible to the author** (the neglect/threat-model objection). True of ARIA attributes and a11y-touching JS today too. But under neglect, the easiest version is what ships — and today the accessible version of CSS-driven UI costs a JS subsystem while the inaccessible one costs nothing. This feature's purpose is making the accessible version the one-declaration version; the Guardrails are the correct-use encouragement whose absence was the core complaint about `interactivity`.
+- **CSS can't know the condition** (Chan). A scroller that is only sometimes scrollable also depends on content amount; the browser should make such things focusable itself rather than hand authors another footgun.
+  Browsers should address the cases they can, and this provides an escape hatch when their heuristics are wrong. But CSS already knows a lot of conditions that are hard or impossible to detect reliably from JS: `scroll-state()`, `:snapped`, `:target-current`, `:user-invalid`, container and media queries.
+- **Granularity** (Oriol). `tabindex=-1` (click-only) is common; if sequential focusability is exposed, so should order; pseudo-element focus is undefined (`activeElement`).
+  Pseudo-element focus already needs solving, since we now have plenty of focusable pseudo-elements. The ARIA properties themselves do not touch focus order at all.
+- **Focus management is already "wonky and magical"** (Kardell 2018, Boxhall). Don't add new complexity until the existing mess is dealt with.
+  This proposal adds no focus management: the properties are write-only inputs to the accessibility tree and never move focus.
 
+### Semantics
 
-
+- **Conditional semantics.** When the UI is conditional on MQs, semantics that can't follow are wrong, not stable; the failure exists today with reversed polarity. `auto` + markup remain for anything that shouldn't vary.
+- **Non-CSS consumers / failed loads.** `auto` keeps markup semantics as the baseline, so a missing stylesheet degrades to today's behavior, where a missing or broken script leaves every synced attribute stale. Consumers that discard CSS already discard `reading-flow` and every layout-dependent aspect of meaning.
+- **Which pseudo-elements need author ARIA at all?** (Higley, on [#14534](https://github.com/w3c/csswg-drafts/issues/14534)). Interactive pseudo-elements like the interest invoker touch button would not benefit from customization, so interactivity alone does not imply a need for custom ARIA in CSS.
+  Agreed that it does not imply it; the [use cases](./use-cases.md) show where the need is concrete: `::picker()` as a grid, `::details-content` as a labelled region, `::tooltip` carrying its role, and the carousel pseudo-elements' labels. And the element half of this proposal does not depend on the pseudo-element half.
+- **Exclude roles; specify each pseudo-element's semantics in its own module** (Crissov, on [#14534](https://github.com/w3c/csswg-drafts/issues/14534)). Most pseudo-elements should be `none`, the few meaningful roles belong in the CSS module that defines the pseudo-element, not in author stylesheets.
+  Both, not either: per-module UA defaults are exactly what a UA stylesheet rule like `::tooltip { role: tooltip }` expresses, and an author override through the same property is what the `::picker()` case needs. Author-overridable UA defaults are how every other property works.
+- **Many of these attributes only apply to certain elements.** So do the SVG geometry properties, `object-fit`/`object-position`, `appearance`, `field-sizing` and `frame-sizing`, and nothing broke. None of these inherit.

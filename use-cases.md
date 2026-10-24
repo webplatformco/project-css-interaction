@@ -264,7 +264,8 @@ syncAriaCurrent();
 document.addEventListener('scrollend', syncAriaCurrent);
 ```
 
-With ARIA in CSS:
+The platform has since moved for one case: the ARIA WG [resolved](https://github.com/w3c/aria/issues/2710#issuecomment-3819696897) in January 2026 that a browser-determined active scroll marker maps to `aria-current="true"` with no attribute injection, and an author-set `aria-current` wins.
+That is this proposal's processing model applied to one feature, and the general rule it generalizes to is:
 
 ```css
 nav a:target-current {
