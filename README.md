@@ -55,7 +55,7 @@ The [full list](./use-cases.md) is drawn from current implementation guidance an
 
 - **[Manual ARIA boilerplate](./use-cases.md#manual-aria-boilerplate)**: facts CSS already knows, added by hand on every instance: `role="list"` after `list-style: none`, `aria-label="2 of 5"` on every carousel slide, a unique id on every dialog heading so `aria-labelledby` can point at it, etc.
 - **[JS that exists only to sync CSS state into ARIA](./use-cases.md#js-to-sync-aria-state)**: `aria-invalid` from `:user-invalid`, `aria-current` from `:target-current`, `aria-pressed` or `aria-selected` from `:checked` (toggle buttons, tabs, `<select>` listboxes restyled as checkbox groups), etc.
-- **[Pseudo-elements that cannot carry ARIA at all](./use-cases.md#inability-to-apply-aria-to-pseudo-elements)**: `::picker()` laid out as a grid, `::details-content` as a labelled region, `::tooltip`, etc.
+- **[Pseudo-elements that cannot carry ARIA at all](./use-cases.md#pseudo-elements)**: `::picker()` laid out as a grid, `::details-content` as a labelled region, `::tooltip`, etc.
 - **[Markup the author cannot edit](./use-cases.md#markup-you-cannot-edit)**: Markdown output, third-party widgets, components that did not forward labels, etc.
 
 ### Why CSS?

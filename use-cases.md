@@ -1,7 +1,40 @@
 # Use Cases
 
 Each entry shows what authors are instructed to do today to make a common UI pattern accessible, and what it collapses to with ARIA properties in CSS.
-Links point to [current implementation guidance](https://github.com/GoogleChrome/guidance) for each pattern, as evidence of present practice; JS snippets are taken from it, trimmed to the ARIA-syncing parts.
+
+- [Manual ARIA boilerplate](#manual-aria-boilerplate)
+	- [Skeleton](#skeleton)
+	- [Scrollable regions](#scrollable-regions)
+		- [Code blocks](#code-blocks)
+		- [Responsive tables](#responsive-tables)
+	- [Decorative elements (`aria-hidden="true"` / `role="none"`)](#decorative-elements-aria-hiddentrue--rolenone)
+	- [Polyfills and workarounds](#polyfills-and-workarounds)
+	- [Aligning `aria-orientation` with styling](#aligning-aria-orientation-with-styling)
+	- [Breadcrumbs (`aria-current`)](#breadcrumbs-aria-current)
+	- [Dialog labels (`aria-labelledby`)](#dialog-labels-aria-labelledby)
+	- [Relationships that force templating (`aria-describedby`, `aria-errormessage`)](#relationships-that-force-templating-aria-describedby-aria-errormessage)
+	- [Carousel slides (`aria-label` from position)](#carousel-slides-aria-label-from-position)
+- [JS to sync ARIA state](#js-to-sync-aria-state)
+	- [Scrollspy (`aria-current`)](#scrollspy-aria-current)
+	- [Scroll-snap current item (`aria-current`)](#scroll-snap-current-item-aria-current)
+	- [Form validation (`aria-invalid`)](#form-validation-aria-invalid)
+	- [Disclosure triggers (`aria-expanded`)](#disclosure-triggers-aria-expanded)
+	- [Toggle buttons (`aria-pressed`)](#toggle-buttons-aria-pressed)
+		- [Checkbox styled as a button](#checkbox-styled-as-a-button)
+		- [Password visibility toggle](#password-visibility-toggle)
+	- [Tabs (`role="tab"`, `aria-selected`)](#tabs-roletab-aria-selected)
+	- [Select listboxes as other widgets (`role`, `aria-checked`)](#select-listboxes-as-other-widgets-role-aria-checked)
+	- [Combobox virtual focus (`aria-activedescendant`)](#combobox-virtual-focus-aria-activedescendant)
+	- [Sortable tables (`aria-sort`)](#sortable-tables-aria-sort)
+	- [Slider (`aria-valuetext`)](#slider-aria-valuetext)
+	- [Collapsed / inactive content (`aria-hidden`)](#collapsed--inactive-content-aria-hidden)
+	- [Custom element semantics (`ElementInternals`)](#custom-element-semantics-elementinternals)
+- [Pseudo-elements](#pseudo-elements)
+	- [Customizable select with grid picker](#customizable-select-with-grid-picker)
+	- [Accordion panels (`::details-content`)](#accordion-panels-details-content)
+	- [Native tooltips (`::tooltip`)](#native-tooltips-tooltip)
+- [Markup you cannot edit](#markup-you-cannot-edit)
+
 
 ## Manual ARIA boilerplate
 
@@ -815,7 +848,7 @@ With ARIA in CSS, the component's own stylesheet declares the semantics once, fr
 This is also more composable than the mixin.
 Custom attributes, custom states, and consumer overrides all go through the same cascade, and a consumer can extend the semantics (`toggle-switch[readonly] { aria-readonly: true }`) without the component having anticipated it.
 
-## Inability to apply ARIA to pseudo-elements
+## Pseudo-elements
 
 Pseudo-elements have no markup, so there is no attribute to set and no JS bridge to write.
 Generated content can at least be named or hidden through `content: … / "alt"`; nothing equivalent exists for roles, states or relationships, on any pseudo-element.
