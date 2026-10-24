@@ -125,6 +125,15 @@ With ARIA in CSS:
 }
 ```
 
+Step indicators are the same attribute from a class instead of a position.
+The [multi-step form](https://github.com/GoogleChrome/guidance/blob/main/guides/forms/forms/guide.md) instructions ship `<li class="step-active" aria-current="step">`, the class for the styling and the attribute for AT, side by side on every step:
+
+```css
+.step-active {
+	aria-current: step;
+}
+```
+
 ### Dialog labels (`aria-labelledby`)
 
 **Current:** Every dialog must be named by its heading: [modal and non-modal dialogs](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/dialog/guides/ui-components/dialog/guide.md), [light-dismiss dialogs](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-behaviors/light-dismiss-a-dialog/guide.md), and [app tour steps](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-components/persistent-app-tours/guide.md) (`role="dialog"` plus `aria-labelledby`).
@@ -582,6 +591,72 @@ select.stars {
 Conformance-wise this relies on the companion ARIA in HTML loosening the proposal asks for, like tabs.
 Implementation-wise the role half already works; the state half is exactly what these properties add.
 
+### Combobox virtual focus (`aria-activedescendant`)
+
+**Current:** An autocomplete keeps real focus in the text input and moves a *virtual* focus through the suggestions.
+The active suggestion is marked with a class so it can be styled; `aria-activedescendant` on the input is a copy of that class, updated on every arrow key, every filter change and every pointer hover, and it is the attribute most often found stale or pointing at a removed node.
+
+```js
+function setActive(option) {
+	listbox.querySelector('.active')?.classList.remove('active');
+	option.classList.add('active');
+	if (!option.id) {
+		option.id = `opt-${crypto.randomUUID()}`;
+	}
+	input.setAttribute('aria-activedescendant', option.id);
+}
+```
+
+With ARIA in CSS and tree-scoped references, the class is the only state, and the id disappears:
+
+```css
+.combobox {
+	ref-scope: --active;
+}
+
+.combobox .option.active {
+	ref-name: --active;
+}
+
+.combobox input {
+	role: combobox;
+	aria-activedescendant: --active;
+}
+```
+
+A singular reference resolves to the one in-scope element that carries the name, so when the class moves, the relationship moves with it, and when the active option is filtered out, the reference is simply empty.
+
+### Sortable tables (`aria-sort`)
+
+**Current:** The sort direction already lives in a class or data attribute, because the header's arrow is drawn from it.
+`aria-sort` is a second copy, and both [Deque](https://dequeuniversity.com/library/aria/table-sortable) and [Adrian Roselli](https://adrianroselli.com/2021/04/sortable-table-columns.html) spell out the sync rule: remove it from the previously sorted header, set it on the new one, never leave two.
+
+```js
+function sortBy(header, direction) {
+	for (const th of header.parentElement.children) {
+		th.removeAttribute('aria-sort');
+		delete th.dataset.sort;
+	}
+	header.dataset.sort = direction;
+	header.setAttribute('aria-sort', direction);
+	// … reorder the rows
+}
+```
+
+With ARIA in CSS, the attribute that draws the arrow is the only state:
+
+```css
+th[data-sort="ascending"] {
+	aria-sort: ascending;
+}
+
+th[data-sort="descending"] {
+	aria-sort: descending;
+}
+```
+
+As with the toolbar's `aria-pressed`, styling *from* `[aria-sort]` instead is the other way to keep the two in step, and it works as long as ARIA is the only copy.
+
 ### [Slider](https://github.com/GoogleChrome/guidance/blob/main/guides/forms/slider/guide.md) (`aria-valuetext`)
 
 **Current:** If the slider value requires a formatted label or unit, authors must update `aria-valuetext` when changed. The minimal bridge is:
@@ -725,6 +800,37 @@ details {
 	}
 }
 ```
+
+### Native tooltips (`::tooltip`)
+
+**Current:** The `title` attribute is the web's built-in tooltip, and it is widely treated as unusable: hover only, after a delay, never on keyboard focus outside Edge, never on touch, and allowed on elements that cannot be focused at all.
+The CSSWG has [resolved to add `::tooltip`](https://github.com/w3c/csswg-drafts/issues/8930) to style it, and the accessibility objection in that thread was that the attribute's problems should be fixed before it is decorated.
+Its accessibility-tree side already works: `title` is exposed as the element's description, or its name when nothing else provides one.
+What is missing is a way to reach the tooltip without a mouse.
+
+With `interactivity` alongside `::tooltip`, the fix is two rules:
+
+```css
+/* reach tooltips on elements that are not already focusable */
+[title]:not(:any-link, button, input, select, textarea) {
+	interactivity: focusable;
+}
+
+[title]:is(:hover, :focus-visible)::tooltip {
+	appearance: base;
+}
+```
+
+The tooltip itself needs a role, and it has no element to carry one.
+With ARIA properties, the UA stylesheet can declare it, the same way it declares every other UA default:
+
+```css
+::tooltip {
+	role: tooltip;
+}
+```
+
+That is the general point about pseudo-elements with UA-assigned semantics (`::scroll-marker`, `::picker()`, `::tooltip`): expressed as properties, those semantics become inspectable in the same place as their styling, and overridable through the same cascade authors already use.
 
 ## Markup you cannot edit
 
