@@ -23,6 +23,7 @@ Each entry shows what authors are instructed to do today to make a common UI pat
 		- [Checkbox styled as a button](#checkbox-styled-as-a-button)
 		- [Password visibility toggle](#password-visibility-toggle)
 	- [Tabs (`role="tab"`, `aria-selected`)](#tabs-roletab-aria-selected)
+	- [Accordion to tabs by available space](#accordion-to-tabs-by-available-space)
 	- [Select listboxes as other widgets (`role`, `aria-checked`)](#select-listboxes-as-other-widgets-role-aria-checked)
 	- [Combobox virtual focus (`aria-activedescendant`)](#combobox-virtual-focus-aria-activedescendant)
 	- [Sortable tables (`aria-sort`)](#sortable-tables-aria-sort)
@@ -34,6 +35,7 @@ Each entry shows what authors are instructed to do today to make a common UI pat
 	- [Accordion panels (`::details-content`)](#accordion-panels-details-content)
 	- [Native tooltips (`::tooltip`)](#native-tooltips-tooltip)
 - [Markup you cannot edit](#markup-you-cannot-edit)
+- [Built-in browser magic, made visible](#built-in-browser-magic-made-visible)
 
 
 ## Manual ARIA boilerplate
@@ -612,6 +614,55 @@ Both rely on the companion ARIA in HTML change the proposal asks for, the same l
 Chrome already honors both overrides, but exposes neither a checked radio nor an open `details` as `aria-selected`, which is precisely the rule above.
 The tab-to-panel relationship is per pair, which tree-scoped references do not express, so `aria-controls` stays an IDREF.
 
+### Accordion to tabs by available space
+
+**Current:** The same set of sections wants to be tabs where they fit in a row and an accordion where they do not.
+The markup is identical either way; the semantics are not.
+Tabs are a `tablist` of `tab`s with `aria-selected` and one focusable panel; an accordion is a set of disclosure buttons with `aria-expanded` and labelled regions.
+Attributes cannot follow a breakpoint, so authors are told to pick one.
+[Inclusive Components](https://inclusive-components.design/tabbed-interfaces/): "Some have noble attempts to reconfigure tabbed interfaces into accordion interfaces for small viewports. Given that accordions are structured, attributed, and operated completely differently to tabs, I would recommend against this."
+Those who do it anyway ship [a script](https://www.makethingsaccessible.com/guides/responsive-and-accessible-tabbed-interfaces/) that starts from `<details>`/`<summary>`, listens to `matchMedia`, and rewrites every role and attribute on every switch, so that "there will be no incorrect roles present on either widget":
+
+```js
+const mq = window.matchMedia('(max-width: 767px)');
+mq.addEventListener('change', () => {
+	mq.matches ? createAccordions() : createTabs();
+});
+// createTabs(): role=tablist on the wrapper, role=tab + aria-selected + tabindex on every button,
+// role=tabpanel + tabindex on every panel.
+// createAccordions(): removeAttribute() for all of the above, then aria-expanded on every button
+// and role=region on every panel. Plus bookkeeping to keep focus where it was across the switch.
+```
+
+With ARIA in CSS, the switch is a container query, and the narrow side needs no rules at all: a group of `<details name="…">` is already a correct exclusive accordion.
+The wide side is the three rules from [Tabs](#tabs-roletab-aria-selected):
+
+```css
+main {
+	container-type: inline-size;
+}
+
+@container (inline-size > 40em) {
+	.sections {
+		/* lay the summaries out in a row, the open panel below */
+		focusgroup: tablist;
+	}
+
+	.sections > details[open] > summary {
+		aria-selected: true;
+	}
+
+	.sections > details::details-content {
+		role: tabpanel;
+		interactivity: focusable;
+	}
+}
+```
+
+Nothing is removed on the way back: the rules stop matching and `auto` restores the disclosure semantics.
+Focus needs no preserving, because no element is replaced.
+[`aria-orientation`](#aligning-aria-orientation-with-styling) above is the one-property version of the same thing; a navigation list that becomes a disclosure below a breakpoint, or a toolbar whose overflow becomes a menu, are the same shape again.
+
 ### Select listboxes as other widgets (`role`, `aria-checked`)
 
 A checkbox group, a rating, a cycle toggle and a tree view can all be implemented over a styled `<select>` listbox.
@@ -924,7 +975,7 @@ With ARIA properties, the UA stylesheet can declare it, the same way it declares
 }
 ```
 
-That is the general point about pseudo-elements with UA-assigned semantics (`::scroll-marker`, `::picker()`, `::tooltip`): expressed as properties, those semantics become inspectable in the same place as their styling, and overridable through the same cascade authors already use.
+That rule is one instance of a [larger pattern](#built-in-browser-magic-made-visible): UA-assigned semantics expressed as rules authors can read and override.
 
 ## Markup you cannot edit
 
@@ -947,3 +998,63 @@ When they have not, the consumer has no recourse today; with `::part()` the rela
 	role: listitem;
 }
 ```
+
+## Built-in browser magic, made visible
+
+Browsers compute a lot of accessibility semantics that no attribute expresses, and all of it is invisible.
+[HTML-AAM](https://w3c.github.io/html-aam/) assigns implicit roles and states, engines add heuristics on top (WebKit dropping list semantics from unmarked lists), and browsers quietly correct known misuse (`aria-hidden` ignored on `html` and `body`, undone when focus lands inside the hidden subtree).
+An author who wants to know why an element has a role reads a spec or a bug tracker; an author who disagrees with a heuristic has no override short of an attribute in markup.
+
+Presentation has had the better deal for two decades.
+HTML's [Rendering section](https://html.spec.whatwg.org/multipage/rendering.html) specifies presentational behavior as UA stylesheet rules (`[hidden] { display: none }`, `dialog:modal { … }`), inspectors show every one of them next to the author's own, and authors override them through the cascade.
+With ARIA properties, the semantic half can be specified, shipped and inspected the same way:
+
+```css
+/* HTML-AAM implicit roles and states */
+search {
+	role: search;
+}
+
+input[type="checkbox"][switch] {
+	role: switch;
+}
+
+details[open] > summary {
+	aria-expanded: true;
+}
+
+dialog:modal {
+	aria-modal: true;
+}
+
+/* CSS-generated UI with UA-assigned semantics */
+::tooltip {
+	role: tooltip;
+}
+
+/* the ARIA WG resolution for active scroll markers */
+::scroll-marker:target-current {
+	aria-current: true;
+}
+
+/* misuse corrections: !important marks what authors cannot undo */
+html, body {
+	aria-hidden: false !important;
+}
+
+/* engine heuristics, roughly */
+:is(ul, ol):not(nav *) {
+	role: if(style(list-style-type: none): none; else: auto);
+}
+```
+
+Each of these replaces something that exists today in a worse form.
+The `::tooltip` rule is the one [Native tooltips](#native-tooltips-tooltip) needs; the `aria-hidden` rule is the mitigation the ["`aria-hidden` of CSS" objection](./README.md#misuse) asks for, and [#13040](https://github.com/w3c/csswg-drafts/issues/13040) floated the same move for focusability (`[tabindex="0"] { interactivity: focusable !important }`).
+The last rule is the [Safari list bug](https://bugs.webkit.org/show_bug.cgi?id=170179) from [Polyfills and workarounds](#polyfills-and-workarounds), written down: as a UA-origin rule it loses to the author's `ul { role: list }`, which is what the markup `role="list"` workaround achieves today, and the difference between engines becomes a diff between two stylesheets rather than a blog post.
+
+What this buys:
+- **Inspectable.** DevTools already shows UA rules with provenance; a CSS-originated role is as traceable as a CSS-originated `display`, which is the [guardrail](./README.md#guardrails) the proposal asks implementations for.
+- **Overridable where it should be, locked where it should not.** Author overrides go through the normal cascade (`::picker(select) { role: grid }`); corrections browsers must not let authors undo are `!important` in the UA origin, the same way `[hidden]` cannot be un-hidden by a lower-specificity rule.
+- **Specifiable.** HTML-AAM and [CSS-AAM](https://github.com/w3c/css-aam) rows become rules, and every mitigation added to an attribute applies to the property for free, because both are inputs to the same computation.
+
+The UA's own semantics are the one piece of markup nobody can edit.
