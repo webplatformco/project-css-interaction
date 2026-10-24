@@ -33,7 +33,7 @@ While specifying logic via invariants is not a good fit for everything (some thi
 Additionally:
 - **Pseudo-elements have no HTML counterpart**, and often nesting produces incorrect accessibility semantics.
 - CSS is often applied to markup that **cannot be modified directly**, such as third-party Web UI, components, CMS-generated content, content rendered from Markdown, etc. This means ARIA via CSS could even be used to *fix* broken accessibility semantics in otherwise uneditable content.
-- **Partial solution to cross-root ARIA:** By making it possible to specify ARIA via CSS, we can solve a good chunk of the problem, at least for cases where there is a selector to reference both parts of the relation (`::part()`, `::slotted()`, etc).
+- **Consumer-side repair for cross-root ARIA:** Component authors already have paths across the boundary (form-associated custom elements plus element reflection, or Reference Target), but all of them require the component's cooperation. Where there is a selector to both ends of the relation (`::part()`, `::slotted()`), ARIA via CSS lets the consumer fix a component that did not.
 
 ## Proposal
 

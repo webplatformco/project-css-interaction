@@ -70,7 +70,7 @@ video[muted][autoplay]:not([controls]) {
 Authors often have to duplicate `role` and `aria-*` attributes to bridge browser support or work around incomplete/buggy implementations.
 
 Examples:
-- Adding `role=switch` to `<input type="checkbox" switch>`
+- Adding `role=switch` to `<input type="checkbox" switch>` (the [switch polyfill](https://github.com/tomayac/input-switch-polyfill/blob/main/input-switch-polyfill.js#L29) does this from JS for every matching input)
 - `<search role="search">`
 - `<ul role="list">` to fix Safari removing list semantics when `list-style: none` (e.g. [swipe-to-remove lists](https://github.com/IanPouncey/modern-web-guidance-src/blob/swipe-to-remove-accessibility-update/guides/ui-behaviors/swipe-to-remove/guide.md))
 
@@ -434,6 +434,34 @@ document.addEventListener('command', e => {
 }
 ```
 
+### Tabs (`role="tab"`, `aria-selected`)
+
+**Current:** For [tabbed interfaces](https://github.com/GoogleChrome/guidance/blob/knowler/tabs/guides/ui-components/tabs/guide.md), authors are instructed to use `focusgroup=tablist` for roving focus and `tab` semantics, then add `aria-selected` on the selected tab, `role=tabpanel` plus a name on each panel, `aria-controls` from each tab to its panel, and `hidden` on inactive panels.
+`aria-selected` is synced in JS, and again in a `beforematch` handler when panels use `hidden="until-found"`.
+The CSS-only version of the widget is a group of radio inputs: `:checked` is the selected tab, arrow keys move between tabs natively, and only the checked one sits in the tab order.
+What AT hears is a radio group.
+
+With ARIA in CSS, and `focusgroup` and `interactivity` alongside it:
+
+```css
+.tabs {
+	focusgroup: tablist; /* roving focus, tablist and tab semantics */
+}
+
+.tabs > input[type="radio"]:checked {
+	aria-selected: true;
+}
+
+.tabs > .panel {
+	role: tabpanel;
+	interactivity: focusable; /* a panel is a tab stop */
+}
+```
+
+`tab` is not currently a permitted role on radio inputs.
+This relies on the companion ARIA in HTML change the proposal asks for, the same loosening checkbox inputs received for `button` and `switch`.
+The tab-to-panel relationship is per pair, which tree-scoped references do not express, so `aria-controls` stays an IDREF.
+
 ### [Slider](https://github.com/GoogleChrome/guidance/blob/main/guides/forms/slider/guide.md) (`aria-valuetext`)
 
 **Current:** If the slider value requires a formatted label or unit, authors must update `aria-valuetext` when changed. The minimal bridge is:
@@ -534,6 +562,7 @@ Custom attributes, custom states, and consumer overrides all go through the same
 ## Inability to apply ARIA to pseudo-elements
 
 Pseudo-elements have no markup, so there is no attribute to set and no JS bridge to write.
+Generated content can at least be named or hidden through `content: … / "alt"`; nothing equivalent exists for roles, states or relationships, on any pseudo-element.
 Today these are simply blocked.
 
 ### [Customizable select with grid picker](https://github.com/GoogleChrome/guidance/blob/main/guides/forms/custom-select-picker-layouts/guide.md)
@@ -544,13 +573,57 @@ Today these are simply blocked.
 > Nesting a wrapper with `role="grid"` inside the picker works in practice, but is not valid, and may surprise AT users.
 > […] it may be ultimately necessary to switch to a custom solution using the popover API, anchor positioning, and `role="grid"` to achieve the desired UX for screen reader users.
 
-Authors are blocked on exactly the thing CSS can see and HTML cannot reach: `role` (and `focusgroup`) on `::picker(select)`.
+Authors are blocked on exactly the thing CSS can see and HTML cannot reach: `role` and `focusgroup` on `::picker(select)`.
 
 ```css
 select.swatches::picker(select) {
 	display: grid;
 	grid-template-columns: repeat(6, 1fr);
 	role: grid;
+	focusgroup: grid;
 }
 ```
 
+### Accordion panels (`::details-content`)
+
+**Current:** A `<details>`-based accordion renders its panel in `::details-content`, which has no element to carry `role="region"` or a label.
+Authors who want the panel exposed as a labelled region must wrap the content in an extra `<div role="region" aria-labelledby="…">`, with a unique id on every summary.
+
+With ARIA in CSS and tree-scoped references, each panel labels itself by its own summary:
+
+```css
+details {
+	ref-scope: --summary;
+
+	> summary {
+		ref-name: --summary;
+	}
+
+	&::details-content {
+		role: region;
+		aria-labelledby: --summary;
+	}
+}
+```
+
+## Markup you cannot edit
+
+CSS is often the only injection point into markup an author does not control: Markdown output, CMS templates, third-party embeds, components.
+[Dave Rupert's case](https://daverupert.com/2022/10/use-case-for-cascading-attribute-sheets/) is a Markdown-powered blog where foreign-language snippets need `lang` and `dir`, without which the text "makes it inaccessible".
+Adding them means breaking out of Markdown or threading conditionals through every template: "One is easy to write and the other is correct."
+`lang` and `dir` are outside this proposal, but the same shape recurs with ARIA, and there CSS can also *repair* semantics.
+A third-party navigation widget marks a plain list of links up as `role="menu"`/`role="menuitem"`, a misuse the [dropdown instructions](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-atoms/viewport-aware-dropdowns/guide.md) warn against because it promises a keyboard model the widget does not implement.
+The embedding page cannot touch the markup, but it can restyle it.
+The same applies across a shadow boundary.
+A component author can make a wrapping `<label>` reach the inner control, by making the element form-associated and forwarding the name through element reflection, or by adopting Reference Target.
+When they have not, the consumer has no recourse today; with `::part()` the relationship can be repaired from the outside.
+
+```css
+.vendor-nav [role="menu"] {
+	role: list;
+}
+
+.vendor-nav [role="menuitem"] {
+	role: listitem;
+}
+```
