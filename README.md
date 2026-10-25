@@ -2,6 +2,9 @@
 
 <!-- [css-ui] Proposal: `aria-*` and `role` properties, with tree-scoped element references -->
 
+> [!IMPORTANT]
+> This is a work in progress and still very rough around the edges, but any feedback is welcome!
+
 **TL;DR:** `role` and `aria-*` as CSS properties, with tree-scoped element references.
 Two tiers: first, make the CSS-driven interaction authors already build describable to AT; second, encourage more of it by also letting CSS control focusability.
 
