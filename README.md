@@ -155,7 +155,7 @@ Later:
 
 ### Proposed properties
 
-All initial `auto`, not inherited, not animatable, excluded from `all`, elements-only at Level 1.
+All initial `auto` and not inherited.
 
 #### Supporting existing patterns: ARIA
 
@@ -313,10 +313,6 @@ Objections specific to inertness (un-inerting, steering away from `<dialog>`, se
 - **Semantics without behavior.** This objection only bites for widget roles; most of the property set is pure state, where no behavioral contract exists to be missing: `aria-current` from `:target`/`scroll-state(snapped)` (scrollspy, active carousel slide — CSS is the only layer that knows), `aria-expanded` mirroring `:popover-open`/`[open]`/`:checked`/`:focus-within`, `aria-orientation` when `flex-direction` flips at a breakpoint (orientation's source of truth *is* the stylesheet), `aria-hidden` on off-canvas or clamped content, `aria-busy` on skeletons. Where roles are involved, the dominant cases relabel fully working native behavior within ARIA in HTML's existing allowances: checkbox-backed toggles already toggle on Space (`role: button; aria-pressed` or `role: switch` from `:checked` — allowed on checkbox inputs since [html-aria#6](https://github.com/w3c/html-aria/issues/6), though Chrome maps native checkedness onto `switch`, whose state is still `aria-checked`, and not onto `button`'s `aria-pressed`, which is precisely the gap these properties fill), popovers already dismiss and manage focus (`role: tooltip`; `aria-haspopup` on the invoker). Radio-hack tabs have arrow-key traversal natively but `tab` is not currently an allowed role on radio inputs — a relabel this proposal makes worth permitting via a companion ARIA-in-HTML change, the same loosening path checkbox→`button`/`switch` took. These widgets work for keyboard users today and misreport to AT users — the interaction contract is complete, the description is wrong. The residue (`role: button` on a dead `div`) is what the operability guardrail refuses, and invoker commands supply declarative behavior to compose with.
 - **CSS can't know the condition** (Chan). A scroller that is only sometimes scrollable also depends on content amount; the browser should make such things focusable itself rather than hand authors another footgun.
   Browsers should address the cases they can, and this provides an escape hatch when their heuristics are wrong. But CSS already knows a lot of conditions that are hard or impossible to detect reliably from JS: `scroll-state()`, `:snapped`, `:target-current`, `:user-invalid`, container and media queries.
-- **Granularity** (Oriol). `tabindex=-1` (click-only) is common; if sequential focusability is exposed, so should order; pseudo-element focus is undefined (`activeElement`).
-  Pseudo-element focus already needs solving, since we now have plenty of focusable pseudo-elements. The ARIA properties themselves do not touch focus order at all.
-- **Focus management is already "wonky and magical"** (Kardell 2018, Boxhall). Don't add new complexity until the existing mess is dealt with.
-  This proposal adds no focus management: the properties are write-only inputs to the accessibility tree and never move focus.
 
 ### Semantics
 
