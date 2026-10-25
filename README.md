@@ -1,6 +1,9 @@
-# Accessible CSS Widgets
+# ARIA in CSS
 
 <!-- [css-ui] Proposal: `aria-*` and `role` properties, with tree-scoped element references -->
+
+`role` and `aria-*` as CSS properties, with tree-scoped element references.
+First part of a broader program on completing CSS-driven interaction: CSS can create it today, but cannot make it accessible or operable. Later parts cover focusability, `focusgroup` and popovers.
 
 - [Problem statement \& user needs](#problem-statement--user-needs)
 	- [Use cases](#use-cases)
@@ -35,12 +38,12 @@ Additionally, for **CSS pseudo-elements** such as `::picker()`, `::details-conte
 
 As a result, accessibility is often skipped, buggy, pushed to "later", or deemed out of scope altogether ([use cases](./use-cases.md)).
 
-Authors are often discouraged from simpler, faster to load CSS patterns on the basis of accessibility concerns, and steered into heavy markup and JS solutions as the solution.
+Authors are often discouraged from simpler, faster to load HTML & CSS patterns on the basis of accessibility concerns, and steered into heavy markup and JS solutions as the solution.
 A CSS framework that [shelved its tabs component](https://github.com/cirthcss/cirth/issues/61) for exactly this reason put it plainly:
 
 > CSS can select and present a state, but it cannot manage focus or update the corresponding ARIA attributes. Therefore, correct ARIA tabs currently require script.
 
-But what if instead of discouraging authors from doing what feels natural (an uphill battle), we could pave the cowpaths, and _make_ the CSS patterns accessible by design?
+But what if instead of discouraging authors from doing what feels natural (always an uphill battle), we paved the cowpaths, and _made_ the CSS patterns _actually_ accessible?
 
 The benefits are quite significant, for both developers and end-users:
 - Lower friction to make experiences accessible directly translates to **more accessible experiences**.
