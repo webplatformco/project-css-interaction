@@ -9,13 +9,13 @@ First part of a broader program on completing CSS-driven interaction: CSS can cr
 	- [Use cases](#use-cases)
 	- [Why CSS?](#why-css)
 	- [Cross-root ARIA](#cross-root-aria)
-- [What about CAS (Cascading Attribute Sheets)?](#what-about-cas-cascading-attribute-sheets)
+	- [What about CAS (Cascading Attribute Sheets)?](#what-about-cas-cascading-attribute-sheets)
 - [Proposal](#proposal)
 	- [Summary](#summary)
 	- [Proposed properties](#proposed-properties)
 		- [Supporting existing patterns: ARIA](#supporting-existing-patterns-aria)
 		- [Encouraging more patterns: focusability](#encouraging-more-patterns-focusability)
-	- [Value semantics](#value-semantics)
+	- [Precedence of CSS properties over ARIA attributes](#precedence-of-css-properties-over-aria-attributes)
 	- [Element references: `ref-scope` and `ref-name`](#element-references-ref-scope-and-ref-name)
 - [Processing model](#processing-model)
 - [Guardrails](#guardrails)
@@ -49,7 +49,7 @@ The benefits are quite significant, for both developers and end-users:
 - Lower friction to make experiences accessible directly translates to **more accessible experiences**.
 - **Semantics move up a level of abstraction.** Today the only unit that can carry ARIA once for all its uses is a JS component; a class, a CSS framework or the UA stylesheet cannot. In CSS, whoever defines a pattern specifies it once, and consumers get it automatically (e.g. by using the class).
 - **Co-location resists drift.** The dominant scripted-ARIA failure is state desync; deriving semantics from the same selector that drives presentation makes them a single expression.
-- **Fault tolerance.** Scripted ARIA fails whole: a script that does not load, an exception anywhere in the bundle, or an error in an unrelated handler earlier in the same file, and every `setAttribute` after it never runs, silently. CSS is designed to fail partially: an invalid declaration is dropped and the rest of the sheet still applies, and if the sheet never arrives, `auto` leaves the markup semantics exactly as they were.
+- **Fault tolerance.** Scripted ARIA fails whole: In JS _any_ uncaught error breaks the entire file. CSS is fault-tolerant by design. An incorrect declaration is dropped without affecting the rest of the sheet.
 - The resulting decrease in complexity has the potential to **improve speed of Web UI as a whole**. Besides Built-in elements are often wrapped in components _precisely_ to encapsulate accessibility logic (which requires JS).
 The ability to handle accessibility semantics in CSS allows many of these wrappers to become a simple CSS class on a built-in element, with the downstream effects compounding.
 
@@ -57,22 +57,24 @@ The ability to handle accessibility semantics in CSS allows many of these wrappe
 
 The [full list](./use-cases.md) is drawn from current implementation guidance and falls into five buckets:
 
-- **[Manual ARIA boilerplate](./use-cases.md#manual-aria-boilerplate)**: facts CSS already knows, added by hand on every instance: `role="list"` after `list-style: none`, `aria-label="2 of 5"` on every carousel slide, a unique id on every dialog heading so `aria-labelledby` can point at it, etc.
+- **[Manual ARIA boilerplate](./use-cases.md#manual-aria-boilerplate)**: facts CSS already knows, added by hand on every instance: `aria-hidden="true"` on every decorative icon, `aria-current="page"` on the current nav link, a unique id on every dialog heading so `aria-labelledby` can point at it, etc.
 - **[JS that exists only to sync CSS state into ARIA](./use-cases.md#js-to-sync-aria-state)**: `aria-invalid` from `:user-invalid`, `aria-current` from `:target-current`, `aria-pressed` or `aria-selected` from `:checked` (toggle buttons, tabs, `<select>` listboxes restyled as checkbox groups), etc.
-- **[Pseudo-elements that cannot carry ARIA at all](./use-cases.md#pseudo-elements)**: `::picker()` laid out as a grid, `::details-content` as a labelled region, `::tooltip`, and `::slotted()` / `::part()` for semantics across a shadow boundary, from either side.
+- **[Pseudo-elements that cannot carry ARIA at all](./use-cases.md#pseudo-elements)**: `::picker()` laid out as a grid, `::details-content` as a labelled region, `::slotted()` / `::part()` for semantics across a shadow boundary, from either side, etc.
 - **[Markup the author cannot edit](./use-cases.md#markup-you-cannot-edit)**: Markdown output, third-party widgets, components that did not forward labels, etc.
-- **[Built-in browser magic, made visible](./use-cases.md#built-in-browser-magic-made-visible)**: implicit roles, `::tooltip`'s role, the `aria-hidden` corrections browsers apply silently, all as UA stylesheet rules that can be inspected, specified, and overridden.
+- **[Built-in browser magic, made visible](./use-cases.md#built-in-browser-magic-made-visible)**: implicit roles, `::tooltip`'s role, the `aria-hidden` corrections browsers apply silently, all as UA stylesheet rules that can be inspected.
 
 ### Why CSS?
 
-CSS is the only web platform language that facilitates _reactive aggregation_:
-authors specify invariants — what applies to (pseudo-)elements that fit what criteria — and the UA takes care of the hard bits: invalidation and state sync.
+CSS is the only web platform language built around _reactive invariants_:
+authors write rules declaring what applies to which (pseudo-)elements under which conditions, and the UA combines whatever matches and takes care of the hard bits: invalidation and state sync.
 There are no initialization steps, listeners, or side effect cleanup.
-This matters, as invalidation is _hard_ and increases with the number of conditions.
+This matters because invalidation is _hard_, and its difficulty grows with the number of conditions.
 Intent as simple as "apply X to buttons, except when hovered or focused" takes two lines of CSS, but ~50 lines of (much buggier) JS.
-Add media queries into the mix, and the complexity of keeping everything in sync grows even further.
+Add media queries to the mix, and the complexity of keeping everything in sync grows even further.
 
-While specifying logic via invariants is not a good fit for everything (some things are inherently one-shot), accessible semantics are _exactly_ this kind of invariant, and the few that are one-shot are already JS APIs (e.g. `ariaNotify()`). The [use cases](./use-cases.md) demonstrate that very clearly.
+Specifying logic via invariants is not a good fit for everything; some things are inherently one-shot.
+But accessible semantics are _exactly_ this kind of invariant, and the few one-shot cases are already JS APIs (e.g. `ariaNotify()`).
+The [use cases](./use-cases.md) demonstrate this very clearly.
 
 Additionally:
 - **Pseudo-elements have no HTML counterpart**, and often nesting (e.g. a `<div>` wrapping the contents of `::picker()` or `::details-content`) produces incorrect accessibility semantics.
@@ -102,7 +104,7 @@ With ARIA properties, the component stylesheet declares all of it once, for the 
 }
 ```
 
-**Outside the component.** Every existing path across the boundary, form-associated custom elements plus element reflection, or Reference Target, requires the component's cooperation.
+**Outside the component.** Every existing path across the boundary (form-associated custom elements, element reflection, [Reference Target](https://github.com/WICG/webcomponents/blob/gh-pages/proposals/reference-target-explainer.md)) requires the component's cooperation.
 Where a selector reaches both ends of the relation, a consumer can fix a component that did not:
 
 ```css
@@ -116,7 +118,13 @@ label > fancy-input::part(input) {
 }
 ```
 
-## What about CAS (Cascading Attribute Sheets)?
+**Relation to Reference Target.** Reference Target lets a shadow host nominate an element inside its shadow root as the target of any IDREF pointing at the host, so `<label for>`, `aria-labelledby`, `popovertarget` and the rest work across the boundary with no change on the referencing side.
+That fixes the reference primitive itself, for every IDREF in HTML, and this proposal builds on it rather than duplicating it: `<string>` references in ARIA properties resolve exactly as the attribute would, retargeting included.
+The two address different gaps.
+Reference Target is declared by the component, so it is the right fix wherever the component author is in the loop, and nothing here touches non-ARIA references at all.
+ARIA properties cover what remains: components that never adopted it, slotted content the component must describe but does not own, and relations that exist only in some states.
+
+### What about CAS (Cascading Attribute Sheets)?
 
 CAS (Cascading Attribute Sheets) were [first proposed by Tab Atkins in 2012](https://www.xanthir.com/blog/b4K_0) as a way to extend the cascading nature of CSS to HTML attributes.
 Brian Kardell also wrote a [polyfill](https://github.com/bkardell/cas) in 2013.
@@ -135,20 +143,15 @@ Instead, piggybacking on CSS may be [theoretically impure](https://www.w3.org/TR
 - CSS properties mirroring ARIA attributes that feed **only the accessibility tree computation** — never reflected to the DOM.
 - Properties named after the attribute (`role`, not `aria-role`), but value space designed to fit CSS syntax and semantics.
 - Relationship properties take both ids (for compatibility) but also take tree-scoped `<dashed-ident>` references (the `anchor-name` model), also mitigating the [IDREF DX problem](https://github.com/whatwg/html/issues/10143) without attempting to solve it completely.
+- The initial value is `auto`, which defers to the corresponding ARIA attribute or implicit semantics if the attribute is not present.
+- `none` makes the state/property absent even if the attribute is present.
+- ARIA/host-language conflict resolution, unknown-token fallback, and ARIA-in-HTML constraints all apply at used-value time. CSS changes where values come from, not which combinations are conformant.
 
 This is the general form of the [pseudo-element-only `aria-*` properties](https://github.com/w3c/csswg-drafts/issues/14534) proposed in CSSWG in September 2026, which it contains as a subset.
-The [use cases](./use-cases.md) are why the element half is the bigger half.
 
 Later:
 - CQ/`if()` condition to match on computed `role` (since `:role()` cannot match these)
 
-
-Open questions:
-- `auto`-deference vs modeling the attributes as presentational hints into the cascade. The alternative model: the properties set attribute *defaults*, and the markup attribute overrides at inline-style precedence (unlike SVG geometry and HTML presentational attributes, which lose to author CSS for legacy reasons). Either way, selectors keep matching the markup attribute, so no cycles. A propdef column stating whether a corresponding attribute exists and whether the property defaults or overrides it could make SVG geometry and presentational attributes first-class platform concepts rather than legacy warts.
-- Invalid `role` token fallback: `auto` or `none`?
-- `ref-*` vs unifying with `anchor-name`/`anchor-scope`; name visibility across shadow boundaries.
-- Bare `<dashed-ident>` vs a `ref()` function resolving to a new `<element>` type that all IDREF properties take; the Typed OM could then resolve it to actual element references. Relationships whose scope does not follow the tree could use `ident()` to generate refs. Either way, `id` itself should not become CSS-settable (security).
-- Per-property design is deliberate (new ARIA attribute → new property, mechanically); stated to preempt "design the generic attribute mechanism first."
 
 ### Proposed properties
 
@@ -172,13 +175,19 @@ If we want to go even further, and actually _encourage_ the creation of accessib
 When [previously proposed](https://github.com/w3c/csswg-drafts/issues/13040), pushback centered around focusability not being enough for accessible interactions.
 But when focusability is a counterpart to all of the above, that argument doesn't hold.
 
-### Value semantics
+### Precedence of CSS properties over ARIA attributes
 
-- Like SVG geometry properties, the CSS properties would _override_ the corresponding ARIA attribute values for the purpose of accessibility tree computation.
-- The initial value is `auto`, which defers to the corresponding ARIA attribute or implicit semantics if the attribute is not present.
-- `none` makes the state/property absent even if the attribute is present.
-- Anything else replaces the attribute value as *input* to the existing computation: ARIA/host-language conflict resolution, unknown-token fallback, and ARIA-in-HTML constraints all apply at used-value time. CSS changes where values come from, not which combinations are conformant.
+Do these properties override the corresponding ARIA attributes for the purpose of accessibility tree computation?
+There are two conflicting precedents:
+1. Like SVG geometry properties and HTML presentational attributes, the CSS properties would _override_ the corresponding ARIA attribute values
+2. Like inline styles, the CSS properties would have lower precedence than the corresponding attributes
 
+The HTML attributes are higher locality, which would point towards 2.
+`!important` overridding them gives us the best of both worlds.
+
+Either way, selectors keep matching the markup attribute, so no cycles.
+
+Note: A propdef column stating whether a corresponding attribute exists and whether the property defaults or overrides it could make SVG geometry and presentational attributes first-class platform concepts rather than legacy warts.
 
 ### Element references: `ref-scope` and `ref-name`
 
@@ -208,6 +217,11 @@ Multi-valued properties resolve each ident to all in-scope elements exposing it,
 ```
 
 Every instance labels itself by its own heading; no IDs, no uniqueness discipline.
+
+Open questions:
+- Bare `<dashed-ident>` vs a `ref()` function resolving to a new `<element>` type that all IDREF properties take; the Typed OM could then resolve it to actual element references. Relationships whose scope does not follow the tree could use `ident()` to generate refs. Either way, `id` itself should not become CSS-settable (security).
+- `ref-*` vs unifying with `anchor-name`/`anchor-scope`
+- name visibility across shadow boundaries.
 
 ## Processing model
 
@@ -292,7 +306,7 @@ Objections specific to inertness (un-inerting, steering away from `<dialog>`, se
 
 ### Focus and behavior
 
-- **Focusable ≠ accessible** (Higley). The dominant mistake of developers without a11y understanding is toggling focusability and thinking they are done; it degrades screen reader and voice control users. "An alarmingly large foot-gun that would increase the frequency of this mistake."
+- **Focusable ≠ accessible** (Higley). The dominant mistake of developers without a11y understanding is toggling focusability and thinking they are done; it degrades screen reader and voice control users. "An alarmingly large footgun that would increase the frequency of this mistake."
   The other attributes address this: that is the whole point of proposing the two as one program. And the operability guardrail enforces the converse, no widget role without focusability, so the half-done state is not expressible.
 - **Focusability couples to behavior, so the switch belongs in JS** (Rivoal 2018, Higley, Yasskin). Focus alone is rarely useful; the handler that reacts to it is JS, so keeping the switch in JS avoids desync. Rivoal: *removing* focusability from CSS is fine; *adding* it is the suspect direction, acceptable only for cases with no attached behavior.
   See the layer argument above, and the next bullet: for most of the property set there is no behavior to desync from.
