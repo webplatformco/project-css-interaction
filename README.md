@@ -2,8 +2,8 @@
 
 <!-- [css-ui] Proposal: `aria-*` and `role` properties, with tree-scoped element references -->
 
-`role` and `aria-*` as CSS properties, with tree-scoped element references.
-First part of a broader program on completing CSS-driven interaction: CSS can create it today, but cannot make it accessible or operable. Later parts cover focusability, `focusgroup` and popovers.
+**TL;DR:** `role` and `aria-*` as CSS properties, with tree-scoped element references.
+First part of a broader program on completing CSS-driven interaction: CSS can create it today, but cannot make it accessible or operable.
 
 - [Problem statement \& user needs](#problem-statement--user-needs)
 	- [Use cases](#use-cases)
@@ -36,7 +36,7 @@ An increasing number of common interaction patterns can be implemented via HTML 
 
 Additionally, for **CSS pseudo-elements** such as `::picker()`, `::details-content`, `::part()`, `::slotted()` etc there is _no_ way to convey their accessibility semantics to the accessibility tree.
 
-As a result, accessibility is often skipped, buggy, pushed to "later", or deemed out of scope altogether ([use cases](./use-cases.md)).
+As a result, accessibility is often skipped, buggy, pushed to "later", or deemed out of scope altogether.
 
 Authors are often discouraged from simpler, faster to load HTML & CSS patterns on the basis of accessibility concerns, and steered into heavy markup and JS solutions as the solution.
 A CSS framework that [shelved its tabs component](https://github.com/cirthcss/cirth/issues/61) for exactly this reason put it plainly:
@@ -47,6 +47,7 @@ But what if instead of discouraging authors from doing what feels natural (alway
 
 The benefits are quite significant, for both developers and end-users:
 - Lower friction to make experiences accessible directly translates to **more accessible experiences**.
+- **Semantics move up a level of abstraction.** Today the only unit that can carry ARIA once for all its uses is a JS component; a class, a CSS framework or the UA stylesheet cannot. In CSS, whoever defines a pattern specifies it once, and consumers get it automatically (e.g. by using the class).
 - **Co-location resists drift.** The dominant scripted-ARIA failure is state desync; deriving semantics from the same selector that drives presentation makes them a single expression.
 - **Fault tolerance.** Scripted ARIA fails whole: a script that does not load, an exception anywhere in the bundle, or an error in an unrelated handler earlier in the same file, and every `setAttribute` after it never runs, silently. CSS is designed to fail partially: an invalid declaration is dropped and the rest of the sheet still applies, and if the sheet never arrives, `auto` leaves the markup semantics exactly as they were.
 - The resulting decrease in complexity has the potential to **improve speed of Web UI as a whole**. Besides Built-in elements are often wrapped in components _precisely_ to encapsulate accessibility logic (which requires JS).
