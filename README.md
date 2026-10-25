@@ -76,7 +76,7 @@ The benefits are quite significant, for both developers and end-users:
 
 ### Use cases
 
-The [full list](./use-cases.md) is drawn from current implementation guidance and falls into five buckets:
+The [full list](./use-cases.md) falls into five buckets:
 
 - **[Manual ARIA boilerplate](./use-cases.md#manual-aria-boilerplate)**: facts CSS already knows, added by hand on every instance: `aria-hidden="true"` on every decorative icon, `aria-current="page"` on the current nav link, a unique id on every dialog heading so `aria-labelledby` can point at it, etc.
 - **[JS that exists only to sync CSS state into ARIA](./use-cases.md#js-to-sync-aria-state)**: `aria-invalid` from `:user-invalid`, `aria-current` from `:target-current`, `aria-pressed` or `aria-selected` from `:checked` (toggle buttons, tabs, `<select>` listboxes restyled as checkbox groups), etc.
