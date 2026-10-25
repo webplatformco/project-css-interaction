@@ -28,7 +28,10 @@ Each entry shows what authors are instructed to do today to make a common UI pat
 	- [Combobox virtual focus (`aria-activedescendant`)](#combobox-virtual-focus-aria-activedescendant)
 	- [Sortable tables (`aria-sort`)](#sortable-tables-aria-sort)
 	- [Slider (`aria-valuetext`)](#slider-aria-valuetext)
+	- [Values that draw the UI (`aria-valuenow`)](#values-that-draw-the-ui-aria-valuenow)
 	- [Collapsed / inactive content (`aria-hidden`)](#collapsed--inactive-content-aria-hidden)
+	- [Optional slots (`:has-slotted`)](#optional-slots-has-slotted)
+	- [Shared relationship lists (`aria-labelledby`)](#shared-relationship-lists-aria-labelledby)
 	- [Custom element semantics (`ElementInternals`)](#custom-element-semantics-elementinternals)
 - [Pseudo-elements](#pseudo-elements)
 	- [Customizable select with grid picker](#customizable-select-with-grid-picker)
@@ -70,6 +73,7 @@ Note that this is very hard for content processed via Markdown, as code blocks o
 
 To [create responsive tables](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-atoms/responsive-table/guide.md) authors are instructed to manually add `role="region"` + `aria-labelledby` to the table wrapper.
 Whether the element scrolls depends on content and viewport, so the static attribute is wrong whenever it doesn't.
+Web Awesome's [`<wa-scroller>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/scroller/scroller.ts) is the component version of the same instructions: `role="region"` and a "Scrollable region" label unconditionally, and a `tabindex` that flips between `0` and `-1` from a `scrollHeight` measurement re-run on every scroll and resize.
 
 With ARIA in CSS, this is just a scrollable container query + `aria-label`:
 
@@ -102,6 +106,21 @@ video[muted][autoplay]:not([controls]) {
 }
 ```
 
+Component libraries encode the same rule in a watcher.
+Web Awesome's [`<wa-icon>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/icon/icon.ts) is `aria-hidden` unless it has a `label`, in which case it becomes `role="img"` with that label as its name; three `setAttribute`/`removeAttribute` pairs that re-run whenever `label` changes.
+In CSS the attribute selector is the condition and `attr()` is the name:
+
+```css
+wa-icon:not([label]) {
+	aria-hidden: true;
+}
+
+wa-icon[label] {
+	role: img;
+	aria-label: attr(label);
+}
+```
+
 ### Polyfills and workarounds
 
 Authors often have to duplicate `role` and `aria-*` attributes to bridge browser support or work around incomplete/buggy implementations.
@@ -110,8 +129,9 @@ Examples:
 - Adding `role=switch` to `<input type="checkbox" switch>` (the [switch polyfill](https://github.com/tomayac/input-switch-polyfill/blob/main/input-switch-polyfill.js#L29) does this from JS for every matching input)
 - `<search role="search">`
 - `<ul role="list">` to fix Safari removing list semantics when `list-style: none` (e.g. [swipe-to-remove lists](https://github.com/IanPouncey/modern-web-guidance-src/blob/swipe-to-remove-accessibility-update/guides/ui-behaviors/swipe-to-remove/guide.md))
+- `aria-checked` synced by hand on a native checkbox input that carries `role="switch"` (Web Awesome's [`<wa-switch>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/switch/switch.ts)), because not every engine carries native checkedness over to the overridden role.
 
-The latter is particularly illuminating: the CSS creates the problem; but the fix must live in HTML or JS.
+The list case is particularly illuminating: the CSS creates the problem; but the fix must live in HTML or JS.
 
 With ARIA in CSS, this duplication can be avoided:
 ```css
@@ -135,6 +155,7 @@ search {
 For [toolbars](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/toolbar/guides/ui-components/toolbar/guide.md), sliders, tablists, menus, treeviews, and many other components, it is CSS that changes their orientation, but ARIA must manually mirror it.
 
 This also means that for cases where orientation varies e.g. by available space, this adds an unnecessary JS dependency.
+Web Awesome mirrors its `orientation` attribute into `aria-orientation` in four components (divider, button group, radio group, slider), each with its own watcher, where the whole mapping is `[orientation="vertical"] { aria-orientation: vertical }`.
 
 ```css
 [role="toolbar"].vertical {
@@ -153,6 +174,7 @@ This also means that for cases where orientation varies e.g. by available space,
 
 **Current:** Authors are instructed to mark "the current page, the last item" with `aria-current="page"`,
 although it's always the last item.
+Web Awesome's [`<wa-breadcrumb>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/breadcrumb/breadcrumb.ts) automates exactly this: a `slotchange` handler loops over the items, sets `aria-current` on the last and removes it from the rest.
 
 With ARIA in CSS:
 
@@ -334,6 +356,7 @@ container.addEventListener('scrollsnapchange', (event) => {
 ```
 
 In a [carousel](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/carousel/guides/ui-components/carousel/guide.md), native `::scroll-marker:target-current` covers the visual, but the fallback `<button>` markers and a `data-current` attribute on slides are synced from a settled-scroll handler, same as above.
+Web Awesome's [`<wa-carousel>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/carousel/carousel.ts) keeps three copies of "this slide is in view", a class, `inert` and `aria-hidden`, all written from one `IntersectionObserver` callback, plus `aria-busy` on the scroller while a scroll settles.
 For a [navbar](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/navbar/guides/ui-components/navbar/guide.md), `aria-current="page"` is "set at build time or with JavaScript".
 
 With ARIA in CSS:
@@ -829,6 +852,37 @@ Until the script has loaded and run, AT reads a bare number.
 Setting `slider.value` programmatically fires no event, so the label silently goes stale.
 The CSS version has no initialization step and no listener: it holds from the moment the stylesheet applies, for every slider that matches, however the value changes.
 
+### Values that draw the UI (`aria-valuenow`)
+
+**Current:** A progress bar, a split panel and an image comparison each have exactly one number, and each writes it twice: once into the CSS that draws the control, once into `aria-valuenow`.
+Web Awesome's [progress bar](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/progress-bar/progress-bar.ts) sets a `--percentage` custom property that its stylesheet uses as `width`, and the attribute next to it; the [split panel](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/split-panel/split-panel.ts) and [comparison](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/comparison/comparison.ts) do the same with `position`, into `grid-template-columns` and `clip-path` respectively.
+
+```ts
+this.style.setProperty('--percentage', `${clamp(this.value, 0, 100)}%`);
+// …
+html`<div role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow=${this.value}>`
+```
+
+Inside a component the duplication is one line.
+Outside one it is a wall: the HTML+CSS progress bar is `<div class="progress" style="--value: 40">`, and the style attribute is the *only* place the value exists, so making it accessible means adding `role` and `aria-valuenow="40"` by hand, on every instance, and keeping the two numbers equal forever.
+
+With ARIA in CSS, the property that draws the bar is the value:
+
+```css
+.progress {
+	role: progressbar;
+	aria-valuemin: 0;
+	aria-valuemax: 100;
+	aria-valuenow: var(--value);
+
+	&::before {
+		width: calc(var(--value) * 1%);
+	}
+}
+```
+
+Where the value is a reflected attribute instead, `attr()` reads it: `wa-split-panel { aria-valuenow: attr(position type(<number>)) }`.
+
 ### Collapsed / inactive content (`aria-hidden`)
 
 **Current:**
@@ -859,6 +913,101 @@ With ARIA in CSS:
 	aria-hidden: true;
 }
 ```
+
+### Optional slots (`:has-slotted`)
+
+**Current:** Whether a component exposes a label, a hint, a submenu or a disclosure depends on what the consumer slotted in, and components check that from JS.
+Web Awesome's `HasSlotController` listens to `slotchange` in 24 components, and much of what it feeds is ARIA:
+- Every form control (input, textarea, select, checkbox, switch, slider, number, time, OTP and tag inputs, radio and checkbox groups) renders its label and hint elements unconditionally and sets `aria-hidden` on each when its slot is empty.
+- A [dropdown item](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/dropdown-item/dropdown-item.ts) has `aria-haspopup="menu"` and `aria-expanded` only while a `submenu` is slotted.
+- A [tree item](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/tree-item/tree-item.ts) has `aria-expanded` only while it has child items.
+- A dialog or drawer is `aria-labelledby` its title only while it has a header.
+
+```ts
+// dropdown-item
+private handleSlotChange = () => {
+	this.hasSubmenu = this.hasSlotController.test('submenu');
+
+	if (this.hasSubmenu) {
+		this.setAttribute('aria-haspopup', 'menu');
+		this.setAttribute('aria-expanded', this.submenuOpen ? 'true' : 'false');
+	} else {
+		this.removeAttribute('aria-haspopup');
+		this.removeAttribute('aria-expanded');
+	}
+};
+```
+
+The condition is structural, and CSS already selects it: `:has-slotted` from inside the shadow tree, `:has()` from outside.
+Two components even grew SSR-only attributes (`with-label`, `with-header`) to work around, in their own words, "the lack of a `:has-slotted` CSS pseudo-class"; it has since shipped in every engine.
+With ARIA in CSS the semantics go in the same rule that lays the slot out, and `none` expresses absence:
+
+```css
+/* form controls: the label element exists either way */
+:host(:not([label])) .label:not(:has-slotted) {
+	aria-hidden: true;
+}
+
+/* dropdown item: a submenu makes it a disclosure */
+:host {
+	role: menuitem;
+}
+
+:host(:has([slot="submenu"])) {
+	aria-haspopup: menu;
+	aria-expanded: false;
+}
+
+:host(:has([slot="submenu"]):state(submenu-open)) {
+	aria-expanded: true;
+}
+
+/* tree item: leaves have no expanded state */
+:host(:not(:has(wa-tree-item))) {
+	aria-expanded: none;
+}
+```
+
+### Shared relationship lists (`aria-labelledby`)
+
+**Current:** A relationship attribute is a space-separated list, and more than one party may want to be in it.
+Web Awesome's [tooltip](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/tooltip/tooltip.ts) names the element its `for` attribute points at, so it has to add its own id to that element's `aria-labelledby` without clobbering whatever is already there, and remove exactly that id when the anchor changes or the tooltip disconnects:
+
+```ts
+private addToAriaLabelledBy(element: Element, id: string) {
+	const currentLabel = element.getAttribute('aria-labelledby') || '';
+	const labels = currentLabel.split(/\s+/).filter(Boolean);
+
+	if (!labels.includes(id)) {
+		labels.push(id);
+		element.setAttribute('aria-labelledby', labels.join(' '));
+	}
+}
+// plus the mirror image for removal, called from the `for` watcher and on disconnect
+```
+
+The anchor is the consumer's element, so this is also a component writing into markup it does not own.
+
+With tree-scoped references, membership is computed rather than maintained.
+A multi-valued property resolves to every in-scope element exposing the name, in tree order, so whatever names itself is in the list and whatever stops matching, or is removed, drops out:
+
+```css
+.field {
+	ref-scope: --description;
+
+	> wa-tooltip,
+	> .hint {
+		ref-name: --description;
+	}
+
+	> input {
+		aria-describedby: --description;
+	}
+}
+```
+
+No add, no remove, no "only if not already present"; two sources naming the same element compose through the cascade's existing rules.
+When the tooltip is not co-located with its anchor, `for` is an IDREF from the tooltip's side, and this remains a per-id rule, the same gap as in [Disclosure triggers](#disclosure-triggers-aria-expanded).
 
 ### Custom element semantics (`ElementInternals`)
 
@@ -900,6 +1049,36 @@ With ARIA in CSS, the component's own stylesheet declares the semantics once, fr
 
 This is also more composable than the mixin.
 Custom attributes, custom states, and consumer overrides all go through the same cascade, and a consumer can extend the semantics (`toggle-switch[readonly] { aria-readonly: true }`) without the component having anticipated it.
+
+Web Awesome shows the double write at scale.
+Five of its components (option, tree item, radio, dropdown item, step) publish the same fact twice in the same handler, once to CSS as a custom state and once to AT as an attribute:
+
+```ts
+// option
+if (changedProperties.has('selected')) {
+	this.setAttribute('aria-selected', this.selected ? 'true' : 'false');
+	this.customStates.set('selected', this.selected);
+}
+```
+
+The custom state exists so that CSS can select on it.
+With ARIA in CSS that selector is where the semantics live (`:host(:state(selected)) { aria-selected: true }`) and the first line is gone.
+The same holds for attributes the consumer sets, each of which is a watcher today and an attribute selector with these properties:
+
+```css
+wa-tree[selection="multiple"],
+wa-tree[selection="leaf-multiple"] {
+	aria-multiselectable: true;
+}
+
+wa-dropdown-item[type="checkbox"] {
+	role: menuitemcheckbox;
+}
+
+wa-step[active]:not([clickable]) {
+	aria-current: step;
+}
+```
 
 ## Pseudo-elements
 
@@ -1000,6 +1179,8 @@ handleDisabledChange() {
 	this.setAttribute('aria-disabled', this.disabled ? 'true' : 'false');
 }
 ```
+
+Its successor Web Awesome still does this in nine components (tree, tree item, radio, option, dropdown item, carousel, carousel item, divider, icon), each with `setAttribute('role', …)` in `connectedCallback` and a watcher per state.
 
 With ARIA in CSS, the component's stylesheet already reaches slotted children to lay them out, so it can describe them in the same place.
 The children can be plain `<button slot="tab">`s, and in the flat tree they sit directly under the host, so `tablist` → `tab` holds:
