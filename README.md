@@ -30,7 +30,7 @@ Two tiers: first, make the CSS-driven interaction authors already build describa
 	- [ARIA via CSS](#aria-via-css)
 	- [CSS and the a11y tree](#css-and-the-a11y-tree)
 - [Anticipated objections](#anticipated-objections)
-	- [Layer and venue](#layer-and-venue)
+	- [Layer](#layer)
 	- [Misuse](#misuse)
 	- [Tooling](#tooling)
 	- [Semantics](#semantics)
@@ -363,13 +363,11 @@ Where deliberate:
 Many of these were raised against `interactivity: inert` ([#10711](https://github.com/w3c/csswg-drafts/issues/10711), shipped in Chrome 135) and `interactivity: focusable` ([#13040](https://github.com/w3c/csswg-drafts/issues/13040), its 2018 precursor [#3379](https://github.com/w3c/csswg-drafts/issues/3379), the [APA WG review](https://github.com/w3ctag/design-reviews/issues/1055#issuecomment-2725956455), and Alice Boxhall's [threat model post](https://alice.boxhall.au/articles/a-threat-model-for-accessibility-on-the-web/#css-carousels-and-interactivity)), and transfer to any CSS that touches the accessibility tree.
 Objections specific to focusability or inertness (focusable ≠ accessible, focus order, un-inerting, set size with inert items) belong to Tier 2 and are omitted here.
 
-### Layer and venue
+### Layer
 
 - **Wrong layer: CSS is for styling** (Tim Nguyen, Teh, Boxhall, Rivoal 2018, Higley, Yasskin). Semantics, inertness and focusability are content and behavior, not presentation, and CSS's association with presentation makes semantics-blind use *more* likely. Boxhall rejects the "CSS already affects the a11y tree" argument: `display: none` affects it *because* it changes presentation; the a11y tree mirrors the visible experience, and a property that changes semantics without changing visuals is a different category. Higley: CSS may be easier at authoring time but is more fragile and harder to debug.
   CSS has not been only about styling for a very long time: SVG geometry properties, aural properties, `user-select`, `touch-action`, `interactivity`, `resize`, `pointer-events`, `scroll-behavior`/`overscroll-behavior`, `content`/`quotes`, `direction`/`unicode-bidi`, `reading-flow`/`reading-order`, Opera's old `nav-*`. That ship has sailed, and `reading-flow` is the direct counterexample to Boxhall's line: it changes exposure order without changing a pixel, and went through ARIA WG review ([aria#2241](https://github.com/w3c/aria/issues/2241)).
   The actual user need was never "separation of concerns"; it is local (one-off) vs global (rule-based): O(1) author effort, a single source of truth, and no side effects or invalidation to manage. That is exactly why reactive frameworks are popular, and CSS is the platform's only fully reactive language. Theoretical purity sits at the bottom of the priority of constituencies; this has very clear benefits for both end users and developers, who sit at the top.
-- **Wrong venue** (Higley, Atkins, APA). CSSWG has fewer a11y participants than Open UI or HTML; `focusgroup` and `focusNext` came out better *because* a11y people were involved early.
-  The semantics here are not CSS's to design: every property mirrors an ARIA attribute one to one and feeds the existing ARIA/HTML-AAM computation unchanged, so ARIA WG owns the meaning and CSSWG owns only the syntax and the cascade, the same split `reading-flow` used, and CSS-AAM now exists as the joint venue for exactly these mappings. The companion ARIA in HTML change goes through html-aria, not here.
 - **`ElementInternals` is the designated path for declaring semantics outside markup.** The ARIA mixin exists precisely so that semantics are set by the code that owns the behavior, and AOM deliberately did not add a general write path.
   `ElementInternals` is host-only, component-only and imperative; it cannot describe slotted content, cannot be used by a consumer, and cannot follow a condition. It covers one of the five use-case buckets, and the [custom element use cases](./use-cases.md#custom-element-semantics-elementinternals) show the double write it forces even there. This proposal keeps its processing model (computed semantics, no DOM reflection) and extends it to where selectors already reach.
 - **Fix HTML instead.** `focusgroup`, invoker commands, Reference Target and `<input switch>` are closing the same gaps declaratively, in the layer that owns semantics.
