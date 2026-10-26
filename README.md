@@ -76,6 +76,7 @@ The benefits are quite significant, for both developers and end-users:
 - **Co-location resists drift.** The dominant scripted-ARIA failure is state desync; deriving semantics from the same selector that drives presentation makes them a single expression.
 - **Fault tolerance.** Scripted ARIA fails whole: In JS _any_ uncaught error breaks the entire file. CSS is fault-tolerant by design. An incorrect declaration is dropped without affecting the rest of the sheet.
 - **Fewer wrappers.** Built-in elements are often wrapped in components _precisely_ to encapsulate accessibility logic, which today requires JS. Handling accessibility semantics in CSS lets many of these wrappers become a CSS class on a built-in element, and the decrease in complexity compounds downstream.
+Of [Web Awesome](https://github.com/shoelace-style/webawesome)'s 73 components, 39 (53%) could have been a simple CSS class if it weren't for JS syncing state to ARIA (7 of them would also need `focusgroup`); see the [component library audit](./component-libraries.md).
 
 ### Use cases
 
