@@ -12,6 +12,7 @@ Two tiers: first, make the CSS-driven interaction authors already build describa
 	- [Use cases](#use-cases)
 	- [Why CSS?](#why-css)
 	- [Cross-root ARIA](#cross-root-aria)
+- [CSS and the a11y tree](#css-and-the-a11y-tree)
 - [Proposal](#proposal)
 	- [Summary](#summary)
 	- [Tier 1: Supporting existing patterns](#tier-1-supporting-existing-patterns)
@@ -31,7 +32,6 @@ Two tiers: first, make the CSS-driven interaction authors already build describa
 - [Prior art](#prior-art)
 	- [Attributes from CSS](#attributes-from-css)
 	- [ARIA via CSS](#aria-via-css)
-	- [CSS and the a11y tree](#css-and-the-a11y-tree)
 - [Anticipated objections](#anticipated-objections)
 	- [Layer](#layer)
 	- [Misuse](#misuse)
@@ -118,6 +118,30 @@ A consumer cannot fix a component that did not describe its parts, even when a s
 
 Selectors already cross the boundary in both directions (`::slotted()`, `::part()`, `:host`), so a stylesheet is the one place where both sides can be described.
 See [Cross-root references](#cross-root-references) for how.
+
+## CSS and the a11y tree
+
+CSS already affects the a11y tree, often destructively and by accident:
+- `display: contents` ([#3040](https://github.com/w3c/csswg-drafts/issues/3040))
+- `list-style: none` in WebKit (strips `list` / `listitem` roles from unstyled `<ul>`/`<ol>`, [WebKit bug 170179](https://bugs.webkit.org/show_bug.cgi?id=170179), [write-up](https://www.scottohara.me/blog/2019/01/12/lists-and-safari.html)).
+
+CSS already controls focusability, as a side effect of other features:
+- `overflow: auto` / `scroll` makes a scroll container focusable, and only while there is something to scroll ([demo](https://codepen.io/leaverou/pen/PwPpVBJ)).
+- [`image-animation: controlled`](https://drafts.csswg.org/css-image-animation-1/) makes an image focusable so its UA play/pause control can be operated, and only when the image is actually animated; the explainer adds that "screen readers should announce the element distinctly".
+
+CSS already creates interaction that is *not* keyboard accessible, which is the real footgun (collected in [#13040](https://github.com/w3c/csswg-drafts/issues/13040)):
+- `resize` adds interactive UI that manipulates CSS properties, with no keyboard path.
+- `:hover` makes interactive UI trivial to build and impossible to make keyboard accessible without HTML changes or JS. Authors should not have to choose between DX and accessibility.
+- `img:hover, img:focus { image-animation: running }` is the spec's own example, and the spec concedes that "it is not possible to directly make an element focusable in CSS, proper keyboard navigation will require element attributes to be set as well."
+- Content that is interactive only under some conditions (a breakpoint, an overflow) has no attribute that can follow the condition.
+
+Similarly, HTML creates inaccessible tooltips via the `title` attribute, that authors are [actively encouraged to avoid](https://html.spec.whatwg.org/multipage/dom.html#the-title-attribute), in favor of much more markup-heavy [interest invokers](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-behaviors/interest-triggered-tooltips/guide.md).
+
+Where deliberate:
+- `reading-flow`/`reading-order` (exposure order, with ARIA WG review in [aria#2241](https://github.com/w3c/aria/issues/2241)),
+- `content: url() / "alt"`,
+- `::scroll-marker`/`::scroll-button()` and the `image-animation: controlled` control: CSS-generated interactive UI with UA-assigned semantics,
+- `interactivity` (shipped, though over sustained a11y objections in [#10711](https://github.com/w3c/csswg-drafts/issues/10711), cited as fact, not endorsement), and `interactivity: focusable` ([#13040](https://github.com/w3c/csswg-drafts/issues/13040)). That proposal already anticipated this one: making generated content focusable "would obliterate a lot of specialized pseudo-elements being proposed (especially if down the line we can control ARIA roles too)", and it named the false-sense-of-security risk of focusability without semantics, concluding that "the way to solve this is to provide control over those as well, not to make it harder to make a UI keyboard accessible." It also floated expressing a UA default as a UA stylesheet rule (`[tabindex=0] { interactivity: focusable !important }`), the same move this proposal makes for `::tooltip { role: tooltip }`. The objection on [#13040](https://github.com/w3c/csswg-drafts/issues/13040), that focusability alone amplifies the "focusable = accessible" author mistake, is an argument for completing the contract; this proposal is that completion, and the two should be evaluated as one program.
 
 ## Proposal
 
@@ -337,29 +361,6 @@ Platform precedent for CSS properties mirroring markup attributes:
 - [CSS-AAM](https://github.com/w3c/css-aam), newly created, is the home for "this CSS state maps to this platform semantics"; `:target-current` is its first entry, and the resolutions this proposal needs would live there.
 - `aria-busy` by default during view transitions ([#8447](https://github.com/w3c/csswg-drafts/issues/8447), closed) and a pseudo-class for a range input's current value ([#6354](https://github.com/w3c/csswg-drafts/issues/6354)): smaller requests for the a11y tree to follow CSS state.
 
-### CSS and the a11y tree
-
-CSS already affects the a11y tree, often destructively and by accident:
-- `display: contents` ([#3040](https://github.com/w3c/csswg-drafts/issues/3040))
-- `list-style: none` in WebKit (strips `list` / `listitem` roles from unstyled `<ul>`/`<ol>`, [WebKit bug 170179](https://bugs.webkit.org/show_bug.cgi?id=170179), [write-up](https://www.scottohara.me/blog/2019/01/12/lists-and-safari.html)).
-
-CSS already controls focusability, as a side effect of other features:
-- `overflow: auto` / `scroll` makes a scroll container focusable, and only while there is something to scroll ([demo](https://codepen.io/leaverou/pen/PwPpVBJ)).
-- [`image-animation: controlled`](https://drafts.csswg.org/css-image-animation-1/) makes an image focusable so its UA play/pause control can be operated, and only when the image is actually animated; the explainer adds that "screen readers should announce the element distinctly".
-
-CSS already creates interaction that is *not* keyboard accessible, which is the real footgun (collected in [#13040](https://github.com/w3c/csswg-drafts/issues/13040)):
-- `resize` adds interactive UI that manipulates CSS properties, with no keyboard path.
-- `:hover` makes interactive UI trivial to build and impossible to make keyboard accessible without HTML changes or JS. Authors should not have to choose between DX and accessibility.
-- `img:hover, img:focus { image-animation: running }` is the spec's own example, and the spec concedes that "it is not possible to directly make an element focusable in CSS, proper keyboard navigation will require element attributes to be set as well."
-- Content that is interactive only under some conditions (a breakpoint, an overflow) has no attribute that can follow the condition.
-
-Similarly, HTML creates inaccessible tooltips via the `title` attribute, that authors are [actively encouraged to avoid](https://html.spec.whatwg.org/multipage/dom.html#the-title-attribute), in favor of much more markup-heavy [interest invokers](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-behaviors/interest-triggered-tooltips/guide.md).
-
-Where deliberate:
-- `reading-flow`/`reading-order` (exposure order, with ARIA WG review in [aria#2241](https://github.com/w3c/aria/issues/2241)),
-- `content: url() / "alt"`,
-- `::scroll-marker`/`::scroll-button()` and the `image-animation: controlled` control: CSS-generated interactive UI with UA-assigned semantics,
-- `interactivity` (shipped, though over sustained a11y objections in [#10711](https://github.com/w3c/csswg-drafts/issues/10711), cited as fact, not endorsement), and `interactivity: focusable` ([#13040](https://github.com/w3c/csswg-drafts/issues/13040)). That proposal already anticipated this one: making generated content focusable "would obliterate a lot of specialized pseudo-elements being proposed (especially if down the line we can control ARIA roles too)", and it named the false-sense-of-security risk of focusability without semantics, concluding that "the way to solve this is to provide control over those as well, not to make it harder to make a UI keyboard accessible." It also floated expressing a UA default as a UA stylesheet rule (`[tabindex=0] { interactivity: focusable !important }`), the same move this proposal makes for `::tooltip { role: tooltip }`. The objection on [#13040](https://github.com/w3c/csswg-drafts/issues/13040), that focusability alone amplifies the "focusable = accessible" author mistake, is an argument for completing the contract; this proposal is that completion, and the two should be evaluated as one program.
 
 ## Anticipated objections
 
