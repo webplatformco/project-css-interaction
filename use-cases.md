@@ -30,7 +30,7 @@ Each entry shows what authors are instructed to do today to make a common UI pat
 		- [Checkbox styled as a button](#checkbox-styled-as-a-button)
 		- [Password visibility toggle](#password-visibility-toggle)
 	- [Tabs (`role="tab"`, `aria-selected`)](#tabs-roletab-aria-selected)
-	- [Accordion to tabs by available space](#accordion-to-tabs-by-available-space)
+	- [Roles that follow available space](#roles-that-follow-available-space)
 	- [Select listboxes as other widgets (`role`, `aria-checked`)](#select-listboxes-as-other-widgets-role-aria-checked)
 	- [Rating (`aria-readonly`)](#rating-aria-readonly)
 	- [Combobox virtual focus (`aria-activedescendant`)](#combobox-virtual-focus-aria-activedescendant)
@@ -265,18 +265,7 @@ Web Awesome mirrors its `orientation` attribute into `aria-orientation` in four 
 }
 ```
 
-The [menu](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-components/menu/guide.md) instructions have the same coupling one level up, on the role itself.
-`role="menubar"` is correct only when the triggers are "styled as one continuous bar with no gaps between triggers"; visually separate buttons must drop the role and the arrow-key model, because "visually separate buttons signal one `Tab` stop each".
-Whether a page header's triggers form a bar or stand apart can depend on available space, and the rule that lays them out already knows:
-
-```css
-@container (width > 40em) {
-	.commands {
-		display: flex;
-		role: menubar;
-	}
-}
-```
+This is the one-property version of [Roles that follow available space](#roles-that-follow-available-space) below, where the whole role changes with layout.
 
 
 
@@ -946,12 +935,12 @@ Both rely on the companion ARIA in HTML change the proposal asks for, the same l
 Chrome already honors both overrides, but exposes neither a checked radio nor an open `details` as `aria-selected`, which is precisely the rule above.
 The tab-to-panel relationship is per pair, which tree-scoped references do not express, so `aria-controls` stays an IDREF.
 
-### Accordion to tabs by available space
+### Roles that follow available space
 
-**Current:** The same set of sections wants to be tabs where they fit in a row and an accordion where they do not.
-The markup is identical either way; the semantics are not.
-Tabs are a `tablist` of `tab`s with `aria-selected` and one focusable panel; an accordion is a set of disclosure buttons with `aria-expanded` and labelled regions.
+**Current:** A component often wants to be one widget where it fits and another where it does not: the same markup, laid out differently, with different semantics.
 Attributes cannot follow a breakpoint, so authors are told to pick one.
+The canonical case is sections that are tabs in a row and an accordion in a column.
+Tabs are a `tablist` of `tab`s with `aria-selected` and one focusable panel; an accordion is a set of disclosure buttons with `aria-expanded` and labelled regions.
 [Inclusive Components](https://inclusive-components.design/tabbed-interfaces/): "Some have noble attempts to reconfigure tabbed interfaces into accordion interfaces for small viewports. Given that accordions are structured, attributed, and operated completely differently to tabs, I would recommend against this."
 Those who do it anyway ship [a script](https://www.makethingsaccessible.com/guides/responsive-and-accessible-tabbed-interfaces/) that starts from `<details>`/`<summary>`, listens to `matchMedia`, and rewrites every role and attribute on every switch, so that "there will be no incorrect roles present on either widget":
 
@@ -993,7 +982,20 @@ main {
 
 Nothing is removed on the way back: the rules stop matching and `auto` restores the disclosure semantics.
 Focus needs no preserving, because no element is replaced.
-[`aria-orientation`](#aligning-aria-orientation-with-styling) above is the one-property version of the same thing; a navigation list that becomes a disclosure below a breakpoint, or a toolbar whose overflow becomes a menu, are the same shape again.
+
+The same shape recurs wherever layout decides the widget:
+- A navigation list that is a disclosure below a breakpoint and a `menubar` above it. The [menu](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-components/menu/guide.md) instructions tie the role to the layout explicitly: `role="menubar"` is correct only when the triggers are "styled as one continuous bar with no gaps between triggers", and visually separate buttons must drop it, because they "signal one `Tab` stop each".
+- A toolbar whose overflowing items become a menu.
+- [`aria-orientation`](#aligning-aria-orientation-with-styling) above, where only one property follows the layout.
+
+```css
+@container (width > 40em) {
+	.commands {
+		display: flex;
+		role: menubar;
+	}
+}
+```
 
 ### Select listboxes as other widgets (`role`, `aria-checked`)
 
