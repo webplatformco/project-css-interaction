@@ -276,8 +276,9 @@ With both, the half-done state is not expressible.
 
 Do these properties override the corresponding ARIA attributes for the purpose of accessibility tree computation?
 There are two conflicting precedents:
-1. Like SVG geometry properties, HTML presentational attributes and `dir`, the CSS properties would _override_ the corresponding ARIA attribute values.
-2. Like inline styles, the CSS properties would have lower precedence than the corresponding attributes.
+
+1. The attributes could be treated like inline styles with the same precedence rules, with a conflict resolution policy for when _both_ are specified. I think this makes more sense from a locality perspective, and is a model authors are familiar with.
+2. Like SVG geometry properties, HTML presentational attributes and `dir`, the CSS properties would _override_ the corresponding ARIA attribute values. This was primarily done for compatibility reasons, and is less intuitive.
 
 **This document assumes 1:** the attribute behaves like a presentational hint, exactly as `dir` does for `direction`. It beats the UA stylesheet and loses to any author declaration, and `auto` (the initial value) defers to it.
 This is what the use cases need:
