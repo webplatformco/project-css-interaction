@@ -211,6 +211,7 @@ Examples:
 - `<search role="search">`
 - `<ul role="list">` to fix Safari removing list semantics when `list-style: none` (e.g. [swipe-to-remove lists](https://github.com/IanPouncey/modern-web-guidance-src/blob/swipe-to-remove-accessibility-update/guides/ui-behaviors/swipe-to-remove/guide.md))
 - `aria-checked` synced by hand on a native checkbox input that carries `role="switch"` (Web Awesome's [`<wa-switch>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/switch/switch.ts)), because not every engine carries native checkedness over to the overridden role.
+- `role="menu"` on the container and `role="menuitem"` on every button, written from JS only when `focusgroup` is unsupported ([menu](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-components/menu/guide.md)), because native `focusgroup` infers those roles and an explicit role blocks the inference; the fallback cannot be static markup.
 
 The list case is particularly illuminating: the CSS creates the problem; but the fix must live in HTML or JS.
 
@@ -230,6 +231,21 @@ search {
 }
 ```
 
+The `focusgroup` fallback is the one that needs a condition, and the condition is a feature test.
+There is no `@supports` for an HTML attribute, but once `focusgroup` is a CSS property as well ([Tier 2](./README.md#tier-2-encouraging-more-patterns)), the roles it would have inferred come from the same place when it is missing:
+
+```css
+@supports not (focusgroup: menu) {
+	.menu {
+		role: menu;
+
+		> button:not([role]) {
+			role: menuitem;
+		}
+	}
+}
+```
+
 
 ### Aligning `aria-orientation` with styling
 
@@ -245,6 +261,19 @@ Web Awesome mirrors its `orientation` attribute into `aria-orientation` in four 
 
 	[role="separator"] {
 		aria-orientation: horizontal;
+	}
+}
+```
+
+The [menu](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-components/menu/guide.md) instructions have the same coupling one level up, on the role itself.
+`role="menubar"` is correct only when the triggers are "styled as one continuous bar with no gaps between triggers"; visually separate buttons must drop the role and the arrow-key model, because "visually separate buttons signal one `Tab` stop each".
+Whether a page header's triggers form a bar or stand apart can depend on available space, and the rule that lays them out already knows:
+
+```css
+@container (width > 40em) {
+	.commands {
+		display: flex;
+		role: menubar;
 	}
 }
 ```
@@ -672,6 +701,8 @@ Until it ships, authors still need per-ID rules or JS.
 ### Menu items (`role="menuitemcheckbox"`, `aria-checked`, `aria-haspopup`)
 
 **Current:** [Accordion panels and dropdown menus](#accordion-panels-and-dropdown-menus-details-content) below covers the container; the items are the same sync tax per entry.
+The [menu](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-components/menu/guide.md) instructions make every checkable item a `<button>` with an explicit `role="menuitemcheckbox"` (or `menuitemradio`, inside a `role="group"`) and state that "script toggles `aria-checked`"; the check mark is then drawn from `[aria-checked="true"]::before`, so the attribute JS maintains is also the styling hook.
+Every submenu trigger carries `aria-haspopup="menu"` and a JS-synced `aria-expanded` ([Disclosure triggers](#disclosure-triggers-aria-expanded)), and every menu is named with `aria-labelledby` pointing back at its trigger, which means a unique id on every trigger.
 Web Awesome's [`<wa-dropdown-item>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/dropdown-item/dropdown-item.ts) flips its `role` between `menuitem` and `menuitemcheckbox` from its `type`, syncs `aria-checked` from `checked`, and adds `aria-haspopup`/`aria-expanded` when a submenu is slotted ([Optional slots](#optional-slots-has-slotted)); [`<wa-dropdown>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/dropdown/dropdown.ts) loops the items to write `aria-posinset`/`aria-setsize`, and writes `aria-haspopup` and `aria-expanded` into the consumer's slotted trigger button.
 
 ```ts
@@ -714,6 +745,25 @@ With ARIA in CSS, on the `<details>` menu from below: a checkable item is a chec
 ```
 
 Nothing is written into the trigger, since `<summary>` already carries `aria-expanded`, and the position loop has no counterpart: ARIA has the UA compute `aria-posinset` and `aria-setsize` for sibling menu items.
+
+On the popover-based layout from the menu instructions, the per-trigger ids go the same way as [Dialog labels](#dialog-labels-aria-labelledby).
+The instructions already require each popover to be the next sibling of its trigger, and a singular reference resolves to the last in-scope name that precedes it in tree order (the anchor rule), so each menu names its own trigger:
+
+```css
+[role="menubar"],
+[focusgroup~="menu"] {
+	ref-scope: --trigger;
+}
+
+[aria-haspopup="menu"] {
+	ref-name: --trigger;
+}
+
+[popover] > [focusgroup~="menu"] {
+	aria-labelledby: --trigger;
+}
+```
+
 Typeahead and submenu hover timing stay JS.
 
 ### Tree view (`aria-level`, `aria-expanded`)
@@ -1707,6 +1757,11 @@ html, body {
 Each of these replaces something that exists today in a worse form.
 The `::tooltip` rule is the one [Native tooltips](#native-tooltips-tooltip) needs; the `aria-hidden` rule is the mitigation the ["`aria-hidden` of CSS" objection](./README.md#misuse) asks for, and [#13040](https://github.com/w3c/csswg-drafts/issues/13040) floated the same move for focusability (`[tabindex="0"] { interactivity: focusable !important }`).
 The last rule is the [Safari list bug](https://bugs.webkit.org/show_bug.cgi?id=170179) from [Polyfills and workarounds](#polyfills-and-workarounds), written down: as a UA-origin rule it loses to the author's `ul { role: list }`, which is what the markup `role="list"` workaround achieves today, and the difference between engines becomes a diff between two stylesheets rather than a blog post.
+
+Implicit relations are the least visible of all.
+Per [HTML-AAM](https://www.w3.org/TR/html-aam-1.0/#att-command-popovers), a `commandfor` trigger gets an implicit `aria-details` to its popover unless the popover is its next sibling, and the [menu](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-components/menu/guide.md) instructions bend the whole document structure around that: every popover must directly follow its trigger, and the final checklist verifies there is no `aria-details` on any trigger.
+Nothing in the markup names the relation, so nothing in the markup can decline it.
+As a UA rule it shows up in the inspector like any other, and an author who wants the placement freedom overrides it: `[commandfor] { aria-details: none }`.
 
 The `::checkmark` rule is a decision the CSSWG is making right now, without this mechanism, and struggling with.
 [#14316](https://github.com/w3c/csswg-drafts/issues/14316) resolved that `::checkmark` and `::picker-icon` are out of the accessibility tree, since the state they draw is already exposed on the control.
