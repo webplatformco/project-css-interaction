@@ -4,13 +4,18 @@ Each entry shows what authors are instructed to do today to make a common UI pat
 
 - [Manual ARIA boilerplate](#manual-aria-boilerplate)
 	- [Skeleton](#skeleton)
+	- [Loading buttons (`aria-busy`)](#loading-buttons-aria-busy)
 	- [Scrollable regions](#scrollable-regions)
 		- [Code blocks](#code-blocks)
 		- [Responsive tables](#responsive-tables)
 	- [Decorative elements (`aria-hidden="true"` / `role="none"`)](#decorative-elements-aria-hiddentrue--rolenone)
+	- [Spinner (`role="progressbar"`)](#spinner-roleprogressbar)
+	- [Avatar (`role="img"`)](#avatar-roleimg)
 	- [Polyfills and workarounds](#polyfills-and-workarounds)
 	- [Aligning `aria-orientation` with styling](#aligning-aria-orientation-with-styling)
 	- [Breadcrumbs (`aria-current`)](#breadcrumbs-aria-current)
+	- [Pagination (`aria-current`, `aria-disabled`)](#pagination-aria-current-aria-disabled)
+	- [Stepper (`aria-current`, `aria-busy`)](#stepper-aria-current-aria-busy)
 	- [Dialog labels (`aria-labelledby`)](#dialog-labels-aria-labelledby)
 	- [Relationships that force templating (`aria-describedby`, `aria-errormessage`)](#relationships-that-force-templating-aria-describedby-aria-errormessage)
 	- [Carousel slides (`aria-label` from position)](#carousel-slides-aria-label-from-position)
@@ -19,12 +24,15 @@ Each entry shows what authors are instructed to do today to make a common UI pat
 	- [Scroll-snap current item (`aria-current`)](#scroll-snap-current-item-aria-current)
 	- [Form validation (`aria-invalid`)](#form-validation-aria-invalid)
 	- [Disclosure triggers (`aria-expanded`)](#disclosure-triggers-aria-expanded)
+	- [Menu items (`role="menuitemcheckbox"`, `aria-checked`, `aria-haspopup`)](#menu-items-rolemenuitemcheckbox-aria-checked-aria-haspopup)
+	- [Tree view (`aria-level`, `aria-expanded`)](#tree-view-aria-level-aria-expanded)
 	- [Toggle buttons (`aria-pressed`)](#toggle-buttons-aria-pressed)
 		- [Checkbox styled as a button](#checkbox-styled-as-a-button)
 		- [Password visibility toggle](#password-visibility-toggle)
 	- [Tabs (`role="tab"`, `aria-selected`)](#tabs-roletab-aria-selected)
 	- [Accordion to tabs by available space](#accordion-to-tabs-by-available-space)
 	- [Select listboxes as other widgets (`role`, `aria-checked`)](#select-listboxes-as-other-widgets-role-aria-checked)
+	- [Rating (`aria-readonly`)](#rating-aria-readonly)
 	- [Combobox virtual focus (`aria-activedescendant`)](#combobox-virtual-focus-aria-activedescendant)
 	- [Sortable tables (`aria-sort`)](#sortable-tables-aria-sort)
 	- [Slider (`aria-valuetext`)](#slider-aria-valuetext)
@@ -36,7 +44,7 @@ Each entry shows what authors are instructed to do today to make a common UI pat
 - [Pseudo-elements](#pseudo-elements)
 	- [Customizable select with grid picker](#customizable-select-with-grid-picker)
 	- [CSS carousels (`::scroll-button()`, `::scroll-marker`, `::column`)](#css-carousels-scroll-button-scroll-marker-column)
-	- [Accordion panels (`::details-content`)](#accordion-panels-details-content)
+	- [Accordion panels and dropdown menus (`::details-content`)](#accordion-panels-and-dropdown-menus-details-content)
 	- [Native tooltips (`::tooltip`)](#native-tooltips-tooltip)
 	- [Slotted children (`::slotted()`)](#slotted-children-slotted)
 	- [Repairing a component from outside (`::part()`)](#repairing-a-component-from-outside-part)
@@ -60,6 +68,31 @@ Static attributes authors must remember to add by hand, on every instance, even 
 
 Newer [skeleton instructions](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/skeleton/guides/ui-components/skeleton/guide.md) key all the CSS on `.skeleton[aria-busy="true"]` and tell authors to "toggle `aria-busy`, `inert` and `aria-hidden` together" when loading finishes, so ARIA is the source of truth and CSS reads it.
 The same `aria-busy` toggle recurs for [slow view loads](https://github.com/GoogleChrome/guidance/blob/2106-guided-navigation/guides/user-experience/guided-navigation/guide.md).
+Even components forget: Web Awesome's [`<wa-skeleton>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/skeleton/skeleton.ts) sets no `aria-busy` at all.
+
+### Loading buttons (`aria-busy`)
+
+**Current:** Web Awesome's [`<wa-button>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/button/button.ts) renders a native `<button>` or `<a>` and binds three attributes to its own: `aria-busy` from `loading`, `aria-disabled` when a link button is `disabled`, and `role="button"` when it is not a link.
+Web Awesome's native stylesheet already styles `button` and `a.wa-button`, so the class exists; the component is the ARIA.
+
+```ts
+role=${ifDefined(isLink ? undefined : 'button')}
+aria-disabled=${ifDefined(isLink && this.disabled ? 'true' : undefined)}
+aria-busy=${this.loading ? 'true' : 'false'}
+```
+
+With ARIA in CSS, the same class that draws the spinner and dims the link carries the state:
+
+```css
+.button.loading {
+	aria-busy: true;
+}
+
+a.button.disabled {
+	aria-disabled: true;
+	pointer-events: none;
+}
+```
 
 ### Scrollable regions
 
@@ -141,6 +174,34 @@ The same reasoning applies to hiding non-interactive content, and the rule that 
 }
 ```
 
+### Spinner (`role="progressbar"`)
+
+The inverse of decorative elements: presentational markup that needs a role.
+
+**Current:** Web Awesome's [`<wa-spinner>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/spinner/spinner.ts) is an SVG with `role="progressbar"` and a localized "Loading" label; the component exists to put those two attributes on it.
+
+With ARIA in CSS, a spinner is a class:
+
+```css
+.spinner {
+	role: progressbar;
+	aria-label: "Loading";
+}
+```
+
+### Avatar (`role="img"`)
+
+**Current:** Web Awesome's [`<wa-avatar>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/avatar/avatar.ts) renders an image, initials or an icon, and gives whichever one it rendered `role="img"` and `aria-label` from its `label` attribute, in three separate template branches.
+
+With ARIA in CSS, the same rule as the [icon](#decorative-elements-aria-hiddentrue--rolenone) above, on whatever the avatar holds:
+
+```css
+.avatar {
+	role: img;
+	aria-label: attr(label);
+}
+```
+
 ### Polyfills and workarounds
 
 Authors often have to duplicate `role` and `aria-*` attributes to bridge browser support or work around incomplete/buggy implementations.
@@ -213,6 +274,65 @@ The [multi-step form](https://github.com/GoogleChrome/guidance/blob/main/guides/
 }
 ```
 
+### Pagination (`aria-current`, `aria-disabled`)
+
+**Current:** Web Awesome's [`<wa-pagination>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/pagination/pagination.ts) binds `aria-current="page"` on the current item and `aria-disabled` on the previous and next controls at either boundary, in four template branches (buttons or links, compact or full).
+A static or server-rendered `<nav><ol>` carries the same attributes by hand, on every page.
+
+```ts
+aria-current=${ifDefined(isCurrent ? 'page' : undefined)}
+aria-disabled=${isDisabled ? 'true' : 'false'}
+```
+
+With ARIA in CSS, the current page is the only state, and the boundary controls derive from it:
+
+```css
+.pagination .current > a {
+	aria-current: page;
+}
+
+.pagination:has(.pages > li:first-child.current) .previous,
+.pagination:has(.pages > li:last-child.current) .next {
+	aria-disabled: true;
+	pointer-events: none;
+}
+```
+
+Generating the list from a total and a page size is templating either way; announcing a page change is one-shot and stays a JS API.
+
+### Stepper (`aria-current`, `aria-busy`)
+
+**Current:** The [step snippet](#breadcrumbs-aria-current) above is the simple case.
+Web Awesome's [`<wa-step>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/step/step.ts) also has to decide *where* the attribute goes, because, as its source puts it, "`aria-current` belongs on whichever element actually receives focus: the inner `<button>` when the step is clickable, the host (a plain listitem) otherwise", and it adds `aria-busy` while a step is loading:
+
+```ts
+private syncAriaCurrent() {
+	if (this.active && !this.clickable) {
+		this.setAttribute('aria-current', 'step');
+	} else {
+		this.removeAttribute('aria-current');
+	}
+}
+// plus aria-current=${this.active ? 'step' : nothing} on the <button> branch of the template,
+// and a `loading` watcher for aria-busy
+```
+
+With ARIA in CSS, the placement is a selector:
+
+```css
+.stepper .active:not(:has(> button)) {
+	aria-current: step;
+}
+
+.stepper .active > button {
+	aria-current: step;
+}
+
+.stepper .loading {
+	aria-busy: true;
+}
+```
+
 ### Dialog labels (`aria-labelledby`)
 
 **Current:** Every dialog must be named by its heading: [modal and non-modal dialogs](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/dialog/guides/ui-components/dialog/guide.md), [light-dismiss dialogs](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-behaviors/light-dismiss-a-dialog/guide.md), and [app tour steps](https://github.com/GoogleChrome/guidance/blob/main/guides/ui-components/persistent-app-tours/guide.md) (`role="dialog"` plus `aria-labelledby`).
@@ -224,6 +344,8 @@ That means a unique id on each heading and a matching reference on each containe
 	…
 </dialog>
 ```
+
+Web Awesome's [`<wa-dialog>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/dialog/dialog.ts) and drawer wire `aria-labelledby="title"` inside their shadow root; the fixed id is safe only because the component owns both ends of the relation, which is part of why a native `<dialog>` gets wrapped at all.
 
 With tree-scoped references, the rule is written once and every dialog labels itself by its own heading, no ids involved:
 
@@ -246,6 +368,8 @@ The pain is [acknowledged at the HTML level](https://github.com/whatwg/html/issu
 Meanwhile, frameworks ship a hook for exactly this.
 React: "[`useId`](https://react.dev/reference/react/useId) is a React Hook for generating unique IDs that can be passed to accessibility attributes", because "a component may be rendered more than once on the page, but IDs have to be unique!"
 Vue has the same [`useId()`](https://vuejs.org/api/composition-api-helpers.html#useid), "for accessibility attributes or form elements".
+Component libraries solve it with a shadow root instead: twelve Web Awesome form controls (input, textarea, number input, select, checkbox, switch, slider, radio and checkbox groups, color picker, OTP and tag inputs) render a `<label for="input">`, a hint slot with a fixed id and `aria-describedby="hint"`, legal only because the ids are scoped to the component.
+Web Awesome's native stylesheet already styles every one of those elements; the id plumbing is a large part of why they are wrapped.
 The [error announcement](https://github.com/GoogleChrome/guidance/blob/main/guides/accessibility/accessible-error-announcement/guide.md) instructions show the hand-written version, one id per field and one per message:
 
 ```jsx
@@ -407,6 +531,7 @@ Same relational gap as in disclosure triggers below when `aria-current` belongs 
 
 **Current:** The instructions for [announcing errors accessibly](https://github.com/GoogleChrome/guidance/blob/main/guides/accessibility/accessible-error-announcement/guide.md) exist *solely* to teach a JS bridge from `:user-invalid` to `aria-invalid`.
 The instructions for [required field feedback](https://github.com/GoogleChrome/guidance/blob/main/guides/forms/required-field-feedback/guide.md) repeat the same bridge, and two more patterns point to it.
+Web Awesome's select, tag input and known-date components bind `aria-invalid` from their own validity state in the template, the same bridge one level up.
 Visual and programmatic error state can drift.
 
 ```js
@@ -544,6 +669,104 @@ The [reference combinator](https://drafts.csswg.org/selectors-5/#idref-combinato
 
 Until it ships, authors still need per-ID rules or JS.
 
+### Menu items (`role="menuitemcheckbox"`, `aria-checked`, `aria-haspopup`)
+
+**Current:** [Accordion panels and dropdown menus](#accordion-panels-and-dropdown-menus-details-content) below covers the container; the items are the same sync tax per entry.
+Web Awesome's [`<wa-dropdown-item>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/dropdown-item/dropdown-item.ts) flips its `role` between `menuitem` and `menuitemcheckbox` from its `type`, syncs `aria-checked` from `checked`, and adds `aria-haspopup`/`aria-expanded` when a submenu is slotted ([Optional slots](#optional-slots-has-slotted)); [`<wa-dropdown>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/dropdown/dropdown.ts) loops the items to write `aria-posinset`/`aria-setsize`, and writes `aria-haspopup` and `aria-expanded` into the consumer's slotted trigger button.
+
+```ts
+// dropdown-item
+if (changedProperties.has('type')) {
+	if (this.type === 'checkbox') {
+		this.setAttribute('role', 'menuitemcheckbox');
+		this.setAttribute('aria-checked', this.checked ? 'true' : 'false');
+	} else {
+		this.setAttribute('role', 'menuitem');
+		this.removeAttribute('aria-checked');
+	}
+}
+
+// dropdown
+items.forEach((item, index) => {
+	item.setAttribute('aria-posinset', String(index + 1));
+	item.setAttribute('aria-setsize', String(items.length));
+});
+nativeButton.setAttribute('aria-haspopup', 'menu');
+nativeButton.setAttribute('aria-expanded', this.open ? 'true' : 'false');
+```
+
+With ARIA in CSS, on the `<details>` menu from below: a checkable item is a checkbox input (`menuitemcheckbox` is already an allowed role on one), and a submenu is a nested `<details>`:
+
+```css
+.menu input[type="checkbox"] {
+	role: menuitemcheckbox;
+	aria-checked: false;
+
+	&:checked {
+		aria-checked: true;
+	}
+}
+
+.menu > details > summary {
+	role: menuitem;
+	aria-haspopup: menu; /* aria-expanded follows [open] natively */
+}
+```
+
+Nothing is written into the trigger, since `<summary>` already carries `aria-expanded`, and the position loop has no counterpart: ARIA has the UA compute `aria-posinset` and `aria-setsize` for sibling menu items.
+Typeahead and submenu hover timing stay JS.
+
+### Tree view (`aria-level`, `aria-expanded`)
+
+**Current:** Web Awesome's [`<wa-tree>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/tree/tree.ts) writes `role="tree"` and `aria-multiselectable` from its `selection` attribute; each [`<wa-tree-item>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/tree-item/tree-item.ts) writes `role="treeitem"`, `aria-expanded` only while it has children, `aria-selected`, `aria-busy` while lazy-loading and `aria-disabled`, each from its own watcher, with the children in a `role="group"`.
+Every one of those is the host element, which is the consumer's markup.
+
+```ts
+@watch('expanded', { waitUntilFirstUpdate: true })
+handleExpandedChange() {
+	if (!this.isLeaf) {
+		this.setAttribute('aria-expanded', this.expanded ? 'true' : 'false');
+	} else {
+		this.removeAttribute('aria-expanded');
+	}
+}
+```
+
+With ARIA in CSS, the tree is nested `<details>`, and every state is already in the markup:
+
+```css
+.tree {
+	role: tree;
+	focusgroup: tree;
+}
+
+.tree[data-selection="multiple"] {
+	aria-multiselectable: true;
+}
+
+.tree details {
+	role: treeitem;
+	counter-increment: level;
+	aria-level: counter(level);
+	aria-expanded: false;
+
+	&[open] {
+		aria-expanded: true;
+	}
+
+	&:not(:has(details)) {
+		aria-expanded: none;
+	}
+
+	&.selected > summary {
+		aria-selected: true;
+	}
+}
+```
+
+Two open questions: `treeitem` is not an allowed role on `<details>` or `<summary>` today, the same companion ARIA in HTML change [tabs](#tabs-roletab-aria-selected) need; and `aria-level` from nesting is a counter, which is a string, so the integer properties would need to accept one.
+Multi-selection, indeterminate parents and lazy loading stay JS.
+
 ### Toggle buttons (`aria-pressed`)
 
 A [toolbar](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/toolbar/guides/ui-components/toolbar/guide.md) is instructed to use the AT state as the styling hook: style *from* `[aria-pressed="true"]` so visual and AT state cannot diverge.
@@ -625,6 +848,7 @@ document.addEventListener('command', e => {
 
 **Current:** For [tabbed interfaces](https://github.com/GoogleChrome/guidance/blob/knowler/tabs/guides/ui-components/tabs/guide.md), authors are instructed to use `focusgroup=tablist` for roving focus and `tab` semantics, then add `aria-selected` on the selected tab, `role=tabpanel` plus a name on each panel, `aria-controls` from each tab to its panel, and `hidden` on inactive panels.
 `aria-selected` is synced in JS, and again in a `beforematch` handler when panels use `hidden="until-found"`.
+Web Awesome's [`<wa-tab>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/tab/tab.ts) syncs `aria-selected` from `active`, `<wa-tab-panel>` syncs `aria-hidden` from the same, and `<wa-tab-group>` mints `wa-tab-N`/`wa-tab-panel-N` ids so it can write `aria-controls` and `aria-labelledby` per pair.
 The CSS-only version of the widget is a group of radio inputs: `:checked` is the selected tab, arrow keys move between tabs natively, and only the checked one sits in the tab order.
 What AT hears is a radio group.
 
@@ -794,6 +1018,33 @@ select.stars {
 Conformance-wise this relies on the companion ARIA in HTML loosening the proposal asks for, like tabs.
 Implementation-wise the role half already works; the state half is exactly what these properties add.
 
+### Rating (`aria-readonly`)
+
+**Current:** Web Awesome's [`<wa-rating>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/rating/rating.ts) is `role="slider"` on the host, with `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-disabled`, `aria-readonly` and `aria-label` written in `connectedCallback` and rewritten by a watcher each, plus JS for keyboard, hover preview and half-star precision.
+
+```ts
+connectedCallback() {
+	super.connectedCallback();
+	this.setAttribute('aria-valuenow', String(this.value));
+	this.setAttribute('aria-valuemin', '0');
+	this.setAttribute('aria-valuemax', String(this.max));
+	this.setAttribute('aria-disabled', this.disabled ? 'true' : 'false');
+	this.setAttribute('aria-readonly', this.readonly ? 'true' : 'false');
+	// …
+}
+```
+
+The CSS-only widget is a radio group: `:checked ~ label` fills the stars, `label:has(~ :hover)` previews, half stars are more radios, arrow keys and "3 of 5" are native, and a `<fieldset>` names it.
+It is announced *more* precisely than the slider, and needs none of the six attributes.
+The one thing radios lack is a read-only state:
+
+```css
+.rating.readonly input {
+	aria-readonly: true;
+	pointer-events: none;
+}
+```
+
 ### Combobox virtual focus (`aria-activedescendant`)
 
 **Current:** An autocomplete keeps real focus in the text input and moves a *virtual* focus through the suggestions.
@@ -915,6 +1166,7 @@ With ARIA in CSS, the property that draws the bar is the value:
 ```
 
 Where the value is a reflected attribute instead, `attr()` reads it: `wa-split-panel { aria-valuenow: attr(position type(<number>)) }`.
+Web Awesome's [progress ring](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/progress-ring/progress-ring.ts) is the same number a third time, as a `--percentage` that drives a stroke offset; a `conic-gradient()` reading the same custom property is the whole drawing.
 
 ### Collapsed / inactive content (`aria-hidden`)
 
@@ -1236,6 +1488,7 @@ The `::column` shape needs the same rules on `::column` and `::column::scroll-ma
 
 **Current:** A `<details>`-based accordion renders its panel in `::details-content`, which has no element to carry `role="region"` or a label.
 Authors who want the panel exposed as a labelled region must wrap the content in an extra `<div role="region" aria-labelledby="…">`, with a unique id on every summary.
+Web Awesome's [`<wa-details>`](https://github.com/shoelace-style/webawesome/blob/next/packages/webawesome/src/components/details/details.ts) and accordion item render exactly that wrapper inside their shadow root, plus `aria-controls` from the summary, around a native `<details>` whose own panel they then cannot use.
 
 With ARIA in CSS and tree-scoped references, each panel labels itself by its own summary:
 
