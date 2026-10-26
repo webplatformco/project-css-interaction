@@ -15,10 +15,10 @@ Two tiers: first, make the CSS-driven interaction authors already build describa
 - [CSS and the a11y tree](#css-and-the-a11y-tree)
 - [Proposal](#proposal)
 	- [Summary](#summary)
+	- [Element references: `ref-scope` and `ref-name`](#element-references-ref-scope-and-ref-name)
+		- [Cross-root references](#cross-root-references)
 	- [Tier 1: Supporting existing patterns](#tier-1-supporting-existing-patterns)
 		- [ARIA properties](#aria-properties)
-		- [Element references: `ref-scope` and `ref-name`](#element-references-ref-scope-and-ref-name)
-		- [Cross-root references](#cross-root-references)
 	- [Tier 2: Encouraging more patterns](#tier-2-encouraging-more-patterns)
 	- [Precedence of CSS properties over ARIA attributes](#precedence-of-css-properties-over-aria-attributes)
 - [Processing model](#processing-model)
@@ -167,22 +167,7 @@ This is the general form of the [pseudo-element-only `aria-*` properties](https:
 Later:
 - CQ/`if()` condition to match on computed `role` (since `:role()` cannot match these)
 
-
-### Tier 1: Supporting existing patterns
-
-All properties: initial `auto`, not inherited, not animatable, excluded from `all`, apply to elements and pseudo-elements.
-
-#### ARIA properties
-
-- `role: auto | none | <ident>+`
-- Token states/properties, each mirroring its attribute's grammar as `auto | none | <tokens>`: `aria-expanded`, `aria-pressed`, `aria-checked`, `aria-selected`, `aria-current`, `aria-hidden`, `aria-disabled`, `aria-invalid`, `aria-busy`, `aria-sort`, `aria-orientation`, `aria-haspopup`, `aria-modal`, `aria-readonly`, `aria-required`, `aria-multiselectable`, `aria-live`, `aria-atomic`.
-- Numeric/string: `aria-level`, `aria-posinset`, `aria-setsize`, `aria-value{min,max,now,text}`, `aria-label`, `aria-description`, `aria-roledescription`, `aria-keyshortcuts`, `aria-placeholder`.
-- Relationships: `aria-labelledby`, `aria-describedby`, `aria-details`, `aria-controls`, `aria-errormessage`, `aria-flowto` take `<dashed-ident>+`; `aria-activedescendant` takes one. (`aria-owns` deferred: interacts with `reading-flow` focus scopes.)
-
-Open question, the absence keyword: `none` above means "no value, even if the attribute has one", but `role="none"` (a synonym of `presentation`), `aria-sort="none"` and `aria-autocomplete="none"` are valid attribute values, so `role: none` is ambiguous.
-Options: a distinct keyword for absence (e.g. `omit`), or keep `none` as absence and require the `presentation` spelling for the role, since the other colliding values are equivalent to absence anyway.
-
-#### Element references: `ref-scope` and `ref-name`
+### Element references: `ref-scope` and `ref-name`
 
 IDREF attributes (e.g. `aria-labelledby`) take two types of references:
 - `<string>` which corresponds to an ID ref, just like an attribute would
@@ -256,6 +241,21 @@ That fixes the reference primitive itself, for every IDREF in HTML, and this pro
 The two address different gaps.
 Reference Target is declared by the component, so it is the right fix wherever the component author is in the loop, and nothing here touches non-ARIA references at all.
 ARIA properties cover what remains: components that never adopted it, slotted content the component must describe but does not own, and relations that exist only in some states.
+
+### Tier 1: Supporting existing patterns
+
+All properties: initial `auto`, not inherited, not animatable, excluded from `all`, apply to elements and pseudo-elements.
+
+#### ARIA properties
+
+- `role: auto | none | <ident>+`
+- Token states/properties, each mirroring its attribute's grammar as `auto | none | <tokens>`: `aria-expanded`, `aria-pressed`, `aria-checked`, `aria-selected`, `aria-current`, `aria-hidden`, `aria-disabled`, `aria-invalid`, `aria-busy`, `aria-sort`, `aria-orientation`, `aria-haspopup`, `aria-modal`, `aria-readonly`, `aria-required`, `aria-multiselectable`, `aria-live`, `aria-atomic`.
+- Numeric/string: `aria-level`, `aria-posinset`, `aria-setsize`, `aria-value{min,max,now,text}`, `aria-label`, `aria-description`, `aria-roledescription`, `aria-keyshortcuts`, `aria-placeholder`.
+- Relationships: `aria-labelledby`, `aria-describedby`, `aria-details`, `aria-controls`, `aria-errormessage`, `aria-flowto` take `<dashed-ident>+`; `aria-activedescendant` takes one. (`aria-owns` deferred: interacts with `reading-flow` focus scopes.)
+
+Open question, the absence keyword: `none` above means "no value, even if the attribute has one", but `role="none"` (a synonym of `presentation`), `aria-sort="none"` and `aria-autocomplete="none"` are valid attribute values, so `role: none` is ambiguous.
+Options: a distinct keyword for absence (e.g. `omit`), or keep `none` as absence and require the `presentation` spelling for the role, since the other colliding values are equivalent to absence anyway.
+
 
 ### Tier 2: Encouraging more patterns
 
