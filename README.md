@@ -83,7 +83,7 @@ The [full list](./use-cases.md) falls into five buckets:
 
 - **[Manual ARIA boilerplate](./use-cases.md#manual-aria-boilerplate)**: facts CSS already knows, added by hand on every instance: `aria-hidden="true"` on every decorative icon, `aria-current="page"` on the current nav link, a unique id on every dialog heading so `aria-labelledby` can point at it, etc.
 - **[JS that exists only to sync CSS state into ARIA](./use-cases.md#js-to-sync-aria-state)**: `aria-invalid` from `:user-invalid`, `aria-current` from `:target-current`, `aria-pressed` or `aria-selected` from `:checked` (toggle buttons, tabs, `<select>` listboxes restyled as checkbox groups), etc.
-- **[Pseudo-elements that cannot carry ARIA at all](./use-cases.md#pseudo-elements)**: `::picker()` laid out as a grid, carousel pseudo-elements with UA-assigned roles and no way to name them, `::details-content` as a labelled region, `::slotted()` / `::part()` for semantics across a shadow boundary, from either side, etc.
+- **[Pseudo-elements that cannot carry ARIA at all](./use-cases.md#pseudo-elements)**: `::picker()` laid out as a grid, carousel pseudo-elements with UA-assigned roles and no way to name them, `::details-content` as a labelled region or a menu, whether `::checkmark` is announced, `::slotted()` / `::part()` for semantics across a shadow boundary, from either side, etc.
 - **[Markup the author cannot edit](./use-cases.md#markup-you-cannot-edit)**: Markdown output, third-party widgets, components that did not forward labels, etc.
 - **[Built-in browser magic, made visible](./use-cases.md#built-in-browser-magic-made-visible)**: implicit roles, `::tooltip`'s role, the `aria-hidden` corrections browsers apply silently, all as UA stylesheet rules that can be inspected.
 
@@ -95,6 +95,7 @@ There are no initialization steps, listeners, or side effect cleanup.
 This matters because invalidation is _hard_, and its difficulty grows with the number of conditions.
 Intent as simple as "apply X to buttons, except when hovered or focused" takes two lines of CSS, but ~50 lines of (much buggier) JS.
 Add media queries to the mix, and the complexity of keeping everything in sync grows even further.
+The Chrome team made the same point from the other direction in the TAG review of `interactivity: inert` ([design-reviews#1055](https://github.com/w3ctag/design-reviews/issues/1055#issuecomment-2762905148)): which nodes, at which screen size, obscured by what, "CSS does that with selectors", "with media queries", and "is already orchestrating those moments".
 
 Specifying logic via invariants is not a good fit for everything; some things are inherently one-shot.
 But accessible semantics are _exactly_ this kind of invariant, and the few one-shot cases are already JS APIs (e.g. `ariaNotify()`).
@@ -338,6 +339,7 @@ See [Relation to Reference Target](#cross-root-references).
 [#14534](https://github.com/w3c/csswg-drafts/issues/14534) restricts the same properties to pseudo-elements, on the grounds that the layering and AT-interaction objections to the general version do not apply there.
 It is a strict subset of this proposal, with the same processing model and the same cascade cost.
 Stopping there leaves the four other use-case buckets unaddressed, and leaves the cross-root cases half-solved: `::slotted()` and `::part()` select real elements, so a pseudo-element-only rule already sets ARIA on elements, just not on the ones the author owns.
+It also leaves the headline pseudo-element case half-solved: a `::picker()` exposed as a `grid` needs its `<option>`s exposed as `gridcell`s, and the options are elements whose role has to switch with the same media query as the layout ([grid picker](./use-cases.md#customizable-select-with-grid-picker)).
 
 ### Per-feature mappings in CSS-AAM
 
@@ -411,6 +413,7 @@ Objections specific to focusability or inertness (focusable ≠ accessible, focu
   Agreed that it does not imply it; the [use cases](./use-cases.md) show where the need is concrete: `::picker()` as a grid, `::details-content` as a labelled region, `::tooltip` carrying its role, and the carousel pseudo-elements' labels. And the element half of this proposal does not depend on the pseudo-element half.
 - **Exclude roles; specify each pseudo-element's semantics in its own module** ([#14534 (comment)](https://github.com/w3c/csswg-drafts/issues/14534#issuecomment-5968643406)). Most pseudo-elements should be `none`, the few meaningful roles belong in the CSS module that defines the pseudo-element, not in author stylesheets.
   Both, not either: per-module UA defaults are exactly what a UA stylesheet rule like `::tooltip { role: tooltip }` expresses, and an author override through the same property is what the `::picker()` case needs. Author-overridable UA defaults are how every other property works.
+  [#14316](https://github.com/w3c/csswg-drafts/issues/14316) is the live case: the CSSWG made the per-module decision for `::checkmark` and `::picker-icon`, and it is contested precisely because a hard-coded exclusion is one "an author or user cannot override"; the compromise being sought is a default plus an opt-out, which is a UA rule ([Built-in browser magic](./use-cases.md#built-in-browser-magic-made-visible)).
 - **Many of these attributes only apply to certain elements.** So do the SVG geometry properties, `object-fit`/`object-position`, `appearance`, `field-sizing` and `frame-sizing`, and nothing broke. None of these inherit.
 - **Performance.** Every style recalc can now dirty the accessibility tree, and the tree depends on full style resolution for every element.
   It already does: `display`, `visibility`, `content`, `reading-flow` and `interactivity` are all style inputs to the tree, and engines already recompute it on style change. The new properties are not inherited and are excluded from `all`, so a change invalidates one node, not a subtree.

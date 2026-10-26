@@ -122,6 +122,25 @@ wa-icon[label] {
 }
 ```
 
+Sometimes the decorativeness is itself a CSS decision: a hero illustration that repeats the heading text only at narrow widths, a "matrix rain" of characters transformed into a backdrop, content layered behind a sheet.
+`aria-hidden="true"` in markup is only right where the content is always decorative.
+Today the only conditional path is `interactivity: inert`, which also blocks pointer interaction, text selection and find-in-page.
+The Chrome team made the case for CSS owning the condition in the TAG review of that property ([design-reviews#1055](https://github.com/w3ctag/design-reviews/issues/1055#issuecomment-2762905148)), relaying what library and developer feedback kept coming back to:
+
+> - Crawling a tree with JS to be picky about which nodes are inert or not? **CSS does that with selectors**
+> - Adapting a tree crawl or UI to various screen sizes to manage whether or not items are offscreen inert or on screen and interactive? **CSS does that with media queries**
+> - Knowledge of whether or not the inert item is actually off screen or just obscured in other UI layering creative design ways? **CSS is already orchestrating those moments** and knows best when to change it
+
+The same reasoning applies to hiding non-interactive content, and the rule that makes the content decorative is the rule that hides it:
+
+```css
+@media (width < 600px) {
+	.hero-illustration {
+		aria-hidden: true;
+	}
+}
+```
+
 ### Polyfills and workarounds
 
 Authors often have to duplicate `role` and `aria-*` attributes to bridge browser support or work around incomplete/buggy implementations.
@@ -332,6 +351,19 @@ nav a:target-current {
 	aria-current: true;
 }
 ```
+
+Chromium now implements the resolution behind a flag, with the value fixed to `true`.
+ARIA also defines `page`, `step`, `location`, `date` and `time`; a table of contents is arguably `location`, and a multi-step flow is `step`.
+The resolution lets an author-set `aria-current` win, but an attribute cannot follow `:target-current`, so the only way to pick the value is to go back to the script above.
+With the property, choosing the value is the same rule:
+
+```css
+nav.toc a:target-current {
+	aria-current: location;
+}
+```
+
+Whether current AT distinguishes the values is a separate question; in the [2026-10-15 CSSWG discussion](https://github.com/w3c/csswg-drafts/issues/12269#issuecomment-6196438216), Matt King's read was that for most AT `page`, `true` and the others sound the same today, with support improving.
 
 ### Scroll-snap current item (`aria-current`)
 
@@ -1085,6 +1117,7 @@ wa-step[active]:not([clickable]) {
 
 Most pseudo-elements have no markup, so there is no attribute to set and no JS bridge to write.
 Generated content can at least be named or hidden through `content: … / "alt"`; nothing equivalent exists for roles, states or relationships, on any pseudo-element.
+Alt text is also a literal: string-management and translation tools do not see `content` values, which is why pointing at visible DOM text is the recommended practice ([#12269 (comment)](https://github.com/w3c/csswg-drafts/issues/12269#issuecomment-5054041459)), and a pseudo-element cannot point at anything.
 Today these are simply blocked.
 `::slotted()` and `::part()` are the other kind: they select real elements, but on the far side of a shadow boundary, where the stylesheet's author cannot set attributes either.
 
@@ -1106,6 +1139,29 @@ select.swatches::picker(select) {
 	focusgroup: grid;
 }
 ```
+
+The pseudo-element is only half of it.
+A `grid` needs `gridcell`s, and ARIA in HTML permits no role on `<option>`, so the options must be relabelled too, and they are elements.
+An attribute cannot do it: the same picker is a list again below a breakpoint, or when the swatches are replaced by a text-only variant.
+The option rule has to live where the layout rule lives, which is what a pseudo-element-only version of these properties ([#14534](https://github.com/w3c/csswg-drafts/issues/14534)) cannot express:
+
+```css
+select.swatches > option {
+	role: gridcell;
+}
+```
+
+A one-row picker is the lighter version of the same case.
+`listbox` and `menu` both support `aria-orientation`, the layout that decides it is CSS, and the pseudo-element has nowhere to carry the attribute:
+
+```css
+select.swatches:open::picker(select) {
+	display: flex;
+	aria-orientation: horizontal;
+}
+```
+
+Conformance-wise, `gridcell` on an `<option>` relies on the companion ARIA in HTML change the proposal asks for, like [tabs](#tabs-roletab-aria-selected) and [select listboxes](#select-listboxes-as-other-widgets-role-aria-checked).
 
 ### [CSS carousels](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/carousel/guides/ui-components/carousel/guide.md) (`::scroll-button()`, `::scroll-marker`, `::column`)
 
@@ -1176,7 +1232,7 @@ With ARIA in CSS, the names and roles live next to the rules that generate the U
 
 The `::column` shape needs the same rules on `::column` and `::column::scroll-marker`.
 
-### Accordion panels (`::details-content`)
+### Accordion panels and dropdown menus (`::details-content`)
 
 **Current:** A `<details>`-based accordion renders its panel in `::details-content`, which has no element to carry `role="region"` or a label.
 Authors who want the panel exposed as a labelled region must wrap the content in an extra `<div role="region" aria-labelledby="…">`, with a unique id on every summary.
@@ -1195,6 +1251,30 @@ details {
 		role: region;
 		aria-labelledby: --summary;
 	}
+}
+```
+
+The same pseudo-element is the popup when `<details>` is used as a dropdown menu, as GitHub does throughout its UI.
+`<summary>` already allows `aria-haspopup` in ARIA in HTML, and the UA already keeps its `aria-expanded` in sync with `[open]`.
+What is blocked is the container: the `menu` role and the arrow-key model belong on the popup, and the element that would carry them is the wrapper `::details-content` exists to remove.
+With `focusgroup` alongside the ARIA properties, the behavior token supplies the `menu` role and infers `menuitem` on the buttons, as `tablist` does for [tabs](#tabs-roletab-aria-selected):
+
+```html
+<details class="menu">
+	<summary>Options</summary>
+	<button>Rename</button>
+	<button>Delete</button>
+</details>
+```
+
+```css
+.menu > summary {
+	aria-haspopup: menu;
+}
+
+.menu::details-content {
+	position: absolute;
+	focusgroup: menu;
 }
 ```
 
@@ -1354,6 +1434,12 @@ dialog:modal {
 	aria-current: true;
 }
 
+/* the CSSWG resolution for customizable select glyphs */
+::checkmark,
+::picker-icon {
+	aria-hidden: true;
+}
+
 /* misuse corrections: !important marks what authors cannot undo */
 html, body {
 	aria-hidden: false !important;
@@ -1368,6 +1454,19 @@ html, body {
 Each of these replaces something that exists today in a worse form.
 The `::tooltip` rule is the one [Native tooltips](#native-tooltips-tooltip) needs; the `aria-hidden` rule is the mitigation the ["`aria-hidden` of CSS" objection](./README.md#misuse) asks for, and [#13040](https://github.com/w3c/csswg-drafts/issues/13040) floated the same move for focusability (`[tabindex="0"] { interactivity: focusable !important }`).
 The last rule is the [Safari list bug](https://bugs.webkit.org/show_bug.cgi?id=170179) from [Polyfills and workarounds](#polyfills-and-workarounds), written down: as a UA-origin rule it loses to the author's `ul { role: list }`, which is what the markup `role="list"` workaround achieves today, and the difference between engines becomes a diff between two stylesheets rather than a blog post.
+
+The `::checkmark` rule is a decision the CSSWG is making right now, without this mechanism, and struggling with.
+[#14316](https://github.com/w3c/csswg-drafts/issues/14316) resolved that `::checkmark` and `::picker-icon` are out of the accessibility tree, since the state they draw is already exposed on the control.
+APA objected that this "actually *removes* information"; WebKit, that a hard-coded exclusion means "an author or user cannot override" it, and that `::checkmark` is already exposed on macOS.
+The compromise on the table is hidden by default, exposed when the author provides explicit alt text, which needs a special `auto` behavior for `content` on these two pseudo-elements, and the issue remains open.
+As a UA rule the compromise is the ordinary cascade: hidden by default, so overriding `content` leaks nothing into names or values, and an author or user stylesheet that wants the glyph announced says so:
+
+```css
+option::checkmark {
+	content: "✓" / "selected";
+	aria-hidden: false;
+}
+```
 
 What this buys:
 - **Inspectable.** DevTools already shows UA rules with provenance; a CSS-originated role is as traceable as a CSS-originated `display`, which is the [guardrail](./README.md#guardrails) the proposal asks implementations for.
