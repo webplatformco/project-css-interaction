@@ -35,6 +35,7 @@ Each entry shows what authors are instructed to do today to make a common UI pat
 	- [Custom element semantics (`ElementInternals`)](#custom-element-semantics-elementinternals)
 - [Pseudo-elements](#pseudo-elements)
 	- [Customizable select with grid picker](#customizable-select-with-grid-picker)
+	- [CSS carousels (`::scroll-button()`, `::scroll-marker`, `::column`)](#css-carousels-scroll-button-scroll-marker-column)
 	- [Accordion panels (`::details-content`)](#accordion-panels-details-content)
 	- [Native tooltips (`::tooltip`)](#native-tooltips-tooltip)
 	- [Slotted children (`::slotted()`)](#slotted-children-slotted)
@@ -1105,6 +1106,75 @@ select.swatches::picker(select) {
 	focusgroup: grid;
 }
 ```
+
+### [CSS carousels](https://github.com/GoogleChrome/guidance/blob/guides/ui-components/carousel/guides/ui-components/carousel/guide.md) (`::scroll-button()`, `::scroll-marker`, `::column`)
+
+**Current:** A CSS carousel is built one of two ways:
+1. _Explicit pagination_: Slides are elements, as in [Carousel slides](#carousel-slides-aria-label-from-position) above, or
+2. _Automatic pagination_: The scroller gets `columns: 1` and each page of items is a column box, reached through [`::column`](https://drafts.csswg.org/css-multicol-2/#column-pseudo).
+
+Both get the same chrome via pseudo-elements:
+- `::scroll-button()` for previous/next
+- `::scroll-marker` inside `::scroll-marker-group` for the dots, generated per slide or per `::column`.
+
+[CSS Overflow 5](https://drafts.csswg.org/css-overflow-5/) assigns their semantics:
+- scroll buttons are focusable, activatable and `:disabled` at the end of the scroller
+- the marker group is a `navigation` of `link`s, or a `tablist` of `tab`s with a focusgroup when `scroll-marker-group` says `tabs`.
+
+The only semantic the author controls is the accessible name, through `content: … / "alt"`:
+
+```css
+.carousel-track::scroll-button(inline-start) {
+	content: "‹" / "Previous slide";
+}
+
+.carousel-slide::scroll-marker {
+	content: "" / attr(data-marker-name);
+}
+```
+
+
+The `links` / `tabs` keyword on `scroll-marker-group` already picks these roles from CSS (see [CSS and the a11y tree](./README.md#css-and-the-a11y-tree)).
+
+What is still missing:
+
+- `::scroll-marker-group` is a landmark or tablist with no name.
+	- The guide labels the fallback `<nav>` "Choose a slide". The native group it replaces cannot be labelled.
+	- Two carousels on a page are two indistinguishable `navigation` landmarks.
+- Marker names are "Slide N of M" by structure, but alt text only accepts strings (including `attr()`).
+	- With explicit pagination, the author writes a `data-marker-name` on every slide (boilerplate).
+	- With `::column`, there is no element for `attr()` to read.
+- With `::column`, the slide itself is gone too, so `role="group"`, `aria-roledescription="slide"` and "N of M" have no element to sit on.
+
+
+With ARIA in CSS, the names and roles live next to the rules that generate the UI, and the current marker is already covered by the ARIA WG's `:target-current` [resolution](https://github.com/w3c/aria/issues/2710#issuecomment-3819696897):
+
+```css
+.carousel-track {
+	scroll-marker-group: after;
+
+	&::scroll-marker-group {
+		aria-label: "Slides";
+	}
+
+	&::scroll-button(inline-start) {
+		content: "‹" / "Previous slide";
+	}
+}
+
+.carousel-slide {
+	role: group;
+	aria-roledescription: "slide";
+	aria-label: sibling-index() " of " sibling-count();
+
+	&::scroll-marker {
+		content: "";
+		aria-label: "Slide " sibling-index();
+	}
+}
+```
+
+The `::column` shape needs the same rules on `::column` and `::column::scroll-marker`.
 
 ### Accordion panels (`::details-content`)
 
