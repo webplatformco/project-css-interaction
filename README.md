@@ -152,7 +152,7 @@ Where deliberate:
 
 - CSS properties mirroring ARIA attributes that feed **only the accessibility tree computation**, never reflected to the DOM.
 - Properties named after the attribute (`role`, not `aria-role`), but value space designed to fit CSS syntax and semantics.
-- Relationship properties take ids (for compatibility) but also tree-scoped `<dashed-ident>` references (the `anchor-name` model), also mitigating the [IDREF DX problem](https://github.com/whatwg/html/issues/10143) without attempting to solve it completely.
+- Relationship properties take ids (for compatibility) but also tree-scoped `<dashed-ident>` [element references](./css-refs.md), also mitigating the [IDREF DX problem](https://github.com/whatwg/html/issues/10143) without attempting to solve it completely.
 - The initial value is `auto`, which defers to the corresponding ARIA attribute, or to implicit semantics if the attribute is not present.
 - An explicit absence value makes the state/property absent even if the attribute is present. **Issue:** `none` is the natural CSS spelling, but is also a valid value of `role`, `aria-sort` and `aria-autocomplete`. See [ARIA properties](#aria-properties).
 - Attributes are assumed to behave like presentational hints: beaten by any author declaration, winning over the UA stylesheet. See [Precedence](#precedence-of-css-properties-over-aria-attributes).
@@ -170,18 +170,15 @@ Later:
 
 ### Element references: `ref-scope` and `ref-name`
 
-IDREF attributes (e.g. `aria-labelledby`) take two types of references:
+Element references are not ARIA-specific, so they are specified in their own proposal: [Element references in CSS: `ref-name` and `ref-scope`](./css-refs.md).
+In short, `ref-name` names an element from CSS, `ref-scope` confines that name to a subtree, and any feature that needs an element points at the name (the `anchor-name` / `anchor-scope` model, generalized).
+
+Relationship properties (e.g. `aria-labelledby`) are one consumer, and take two types of references:
 - `<string>` which corresponds to an ID ref, just like an attribute would
-- `<dashed-ident>` which are tree-scoped references modeled on `anchor-name`/`anchor-scope`.
+- `<dashed-ident>` (or an explicit `ref()`), resolved through the `ref-name` lookup.
 
-Strawman:
-
-```
-ref-name:  auto | none | <dashed-ident>#
-ref-scope: auto | none | all | <dashed-ident>#
-```
-
-Multi-valued properties resolve each ident to all in-scope elements exposing it, in tree order; singular ones to the last in tree order (anchor precedent).
+Multi-valued properties are list consumers: each name resolves to all in-scope matches, in tree order.
+Singular ones (`aria-activedescendant`) take the last match in tree order.
 
 ```css
 .card {
@@ -197,10 +194,9 @@ Multi-valued properties resolve each ident to all in-scope elements exposing it,
 
 Every instance labels itself by its own heading; no IDs, no uniqueness discipline.
 
-Open questions:
-- Bare `<dashed-ident>` vs a `ref()` function resolving to a new `<element>` type that all IDREF properties take; the Typed OM could then resolve it to actual element references. Relationships whose scope does not follow the tree could use `ident()` to generate refs. Either way, `id` itself should not become CSS-settable (security).
-- `ref-*` vs unifying with `anchor-name`/`anchor-scope`
-- name visibility across shadow boundaries.
+Relationships whose scope does not follow the tree could use `ident()` to generate names.
+
+Open questions about the primitive itself (boxless referents such as hidden labels, shadow boundaries, composition, naming) are tracked in [that proposal](./css-refs.md#open-questions).
 
 #### Cross-root references
 
@@ -252,7 +248,7 @@ All properties: initial `auto`, not inherited, not animatable, excluded from `al
 - `role: auto | none | <ident>+`
 - Token states/properties, each mirroring its attribute's grammar as `auto | none | <tokens>`: `aria-expanded`, `aria-pressed`, `aria-checked`, `aria-selected`, `aria-current`, `aria-hidden`, `aria-disabled`, `aria-invalid`, `aria-busy`, `aria-sort`, `aria-orientation`, `aria-haspopup`, `aria-modal`, `aria-readonly`, `aria-required`, `aria-multiselectable`, `aria-live`, `aria-atomic`.
 - Numeric/string: `aria-level`, `aria-posinset`, `aria-setsize`, `aria-value{min,max,now,text}`, `aria-label`, `aria-description`, `aria-roledescription`, `aria-keyshortcuts`, `aria-placeholder`.
-- Relationships: `aria-labelledby`, `aria-describedby`, `aria-details`, `aria-controls`, `aria-errormessage`, `aria-flowto` take `<dashed-ident>+`; `aria-activedescendant` takes one. (`aria-owns` deferred: interacts with `reading-flow` focus scopes.)
+- Relationships: `aria-labelledby`, `aria-describedby`, `aria-details`, `aria-controls`, `aria-errormessage`, `aria-flowto` take [`<dashed-ident>+`](./css-refs.md); `aria-activedescendant` takes one. (`aria-owns` deferred: interacts with `reading-flow` focus scopes.)
 
 Open question, the absence keyword: `none` above means "no value, even if the attribute has one", but `role="none"` (a synonym of `presentation`), `aria-sort="none"` and `aria-autocomplete="none"` are valid attribute values, so `role: none` is ambiguous.
 Options: a distinct keyword for absence (e.g. `omit`), or keep `none` as absence and require the `presentation` spelling for the role, since the other colliding values are equivalent to absence anyway.
