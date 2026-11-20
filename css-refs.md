@@ -16,7 +16,7 @@ CSS features increasingly need to point at *another element*. Today each one pic
 
 The WG has already concluded that the name + scope pairs should behave identically ([#12581](https://github.com/w3c/csswg-drafts/issues/12581), [#13364](https://github.com/w3c/csswg-drafts/issues/13364)). The next step is to stop minting them: if the lookup is the same, the name can be too, and even when it isn't, the constraint can live at the resolution point.
 
-Besides improving existing consumers, a generic reference primitive opens up new possibilities, such as:
+A generic reference primitive not only unifies these disparate designs, it also upgrades them across the board to support scoping, reducing code and making it more robust. And besides improving existing consumers, it opens up new possibilities, such as:
 - CSS-declared invoker relationships, e.g. making a pseudo-element an interest invoker for an HTML tooltip ([#14763](https://github.com/w3c/csswg-drafts/issues/14763)). Pseudo-elements cannot carry `interestfor`, so the target has to be named from CSS.
 - Reading values from another element (e.g. an `inherit()` or style query that targets a ref). Speculative, and cycle-prone, but only expressible at all with a reference primitive.
 - CSS-based [portals](https://react.dev/reference/react-dom/createPortal) where an element is moved to another place in the DOM tree
