@@ -20,6 +20,7 @@ Besides improving existing consumers, a generic reference primitive opens up new
 - CSS-declared invoker relationships, e.g. making a pseudo-element an interest invoker for an HTML tooltip ([#14763](https://github.com/w3c/csswg-drafts/issues/14763)). Pseudo-elements cannot carry `interestfor`, so the target has to be named from CSS.
 - Reading values from another element (e.g. an `inherit()` or style query that targets a ref). Speculative, and cycle-prone, but only expressible at all with a reference primitive.
 - CSS-based [portals](https://react.dev/reference/react-dom/createPortal) where an element is moved to another place in the DOM tree
+- `content` that can take rich content from another element
 
 ## Proposal
 
